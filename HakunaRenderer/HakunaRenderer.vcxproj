@@ -91,7 +91,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\SDK\Vulkan\1.1.82.1\Include;C:\Libraries\glfw-3.2.1.bin.WIN64\include;C:\Libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Libraries\tinyobjloader;C:\SDK\Vulkan\1.1.82.1\Include;C:\Libraries\glfw-3.2.1.bin.WIN64\include;C:\Libraries\glm;C:\Libraries\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -109,7 +109,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\SDK\Vulkan\1.1.82.1\Include;C:\Libraries\glfw-3.2.1.bin.WIN64\include;C:\Libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Libraries\tinyobjloader;C:\SDK\Vulkan\1.1.82.1\Include;C:\Libraries\glfw-3.2.1.bin.WIN64\include;C:\Libraries\glm;C:\Libraries\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -129,7 +129,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\SDK\Vulkan\1.1.82.1\Include;C:\Libraries\glfw-3.2.1.bin.WIN64\include;C:\Libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Libraries\tinyobjloader;C:\SDK\Vulkan\1.1.82.1\Include;C:\Libraries\glfw-3.2.1.bin.WIN64\include;C:\Libraries\glm;C:\Libraries\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -151,7 +151,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\SDK\Vulkan\1.1.82.1\Include;C:\Libraries\glfw-3.2.1.bin.WIN64\include;C:\Libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Libraries\tinyobjloader;C:\SDK\Vulkan\1.1.82.1\Include;C:\Libraries\glfw-3.2.1.bin.WIN64\include;C:\Libraries\glm;C:\Libraries\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -166,10 +166,16 @@
     <ClCompile Include="HelloTriangleApplication.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ShaderManager.cpp" />
+    <ClCompile Include="VertexDataManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="HelloTriangleApplication.h" />
     <ClInclude Include="ShaderManager.h" />
+    <ClInclude Include="VertexDataManager.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\basic_test.frag" />
+    <None Include="shaders\basic_test.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

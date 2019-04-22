@@ -24,6 +24,9 @@
     <ClCompile Include="ShaderManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="VertexDataManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="HelloTriangleApplication.h">
@@ -32,5 +35,16 @@
     <ClInclude Include="ShaderManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="VertexDataManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\basic_test.frag">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="shaders\basic_test.vert">
+      <Filter>资源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>
