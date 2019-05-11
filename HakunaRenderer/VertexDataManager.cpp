@@ -12,13 +12,13 @@ VertexDataManager::~VertexDataManager()
 {
 }
 
-void VertexDataManager::loadModel() {
+void VertexDataManager::LoadModelFromFile(std::string model_path) {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
 	std::string warn, err;
 
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
+	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, model_path.c_str())) {
 		throw std::runtime_error(warn + err);
 	}
 	std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
@@ -37,14 +37,14 @@ void VertexDataManager::loadModel() {
 			};
 
 			vertex.color = { 1.0f, 1.0f, 1.0f };
-			vertices.push_back(vertex);
+			vertices_.push_back(vertex);
 
 
 			if (uniqueVertices.count(vertex) == 0) {
-				uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-				vertices.push_back(vertex);
+				uniqueVertices[vertex] = static_cast<uint32_t>(vertices_.size());
+				vertices_.push_back(vertex);
 			}
-			indices.push_back(uniqueVertices[vertex]);
+			indices_.push_back(uniqueVertices[vertex]);
 		}
 	}
 }

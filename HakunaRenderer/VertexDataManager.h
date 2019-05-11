@@ -6,8 +6,6 @@
 #include <vulkan\vulkan.h>
 #include <array>
 #include <unordered_map>
-
-const std::string MODEL_PATH = "models/chalet.obj";
 struct Vertex {
 	glm::vec3 pos;
 	glm::vec3 color;
@@ -57,13 +55,13 @@ namespace std {
 class VertexDataManager
 {
 public:
-	std::vector<Vertex> vertices;
-	std::vector<uint32_t> indices;
+	std::vector<Vertex> vertices_;
+	std::vector<uint32_t> indices_;
 
 public:
 	VertexDataManager();
 	~VertexDataManager();
-	void loadModel();
+	void LoadModelFromFile(std::string model_path);
 
 };
 
