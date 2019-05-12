@@ -50,7 +50,7 @@
     <ClInclude Include="texture_mgr.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="vulkan_core.h">
+    <ClInclude Include="vulkan_utility.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

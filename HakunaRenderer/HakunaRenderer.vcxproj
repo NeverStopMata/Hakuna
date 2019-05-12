@@ -175,7 +175,7 @@
     <ClInclude Include="HakunaRenderer.h" />
     <ClInclude Include="ShaderManager.h" />
     <ClInclude Include="texture_mgr.h" />
-    <ClInclude Include="vulkan_core.h" />
+    <ClInclude Include="vulkan_utility.h" />
     <ClInclude Include="VertexDataManager.h" />
   </ItemGroup>
   <ItemGroup>
