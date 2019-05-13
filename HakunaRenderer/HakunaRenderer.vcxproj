@@ -164,7 +164,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="camera.cpp" />
+    <ClCompile Include="directional_light.cpp" />
     <ClCompile Include="HakunaRenderer.cpp" />
+    <ClCompile Include="light.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ShaderManager.cpp" />
     <ClCompile Include="texture_mgr.cpp" />
@@ -172,7 +174,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
+    <ClInclude Include="directional_light.h" />
     <ClInclude Include="HakunaRenderer.h" />
+    <ClInclude Include="light.h" />
     <ClInclude Include="ShaderManager.h" />
     <ClInclude Include="texture_mgr.h" />
     <ClInclude Include="vulkan_utility.h" />

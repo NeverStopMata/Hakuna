@@ -33,6 +33,12 @@
     <ClCompile Include="texture_mgr.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="light.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="directional_light.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ShaderManager.h">
@@ -51,6 +57,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="vulkan_utility.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="light.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="directional_light.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

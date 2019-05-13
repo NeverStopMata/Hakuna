@@ -5,6 +5,7 @@ using namespace glm;
 class Camera
 {
 public:
+	Camera() {}
 	Camera(float fov_y, float aspect, float far, float near, vec3 position, vec3 lookat) {
 		fov_y_ = fov_y;
 		aspect_ = aspect;
@@ -22,6 +23,13 @@ public:
 	}
 	mat4x4 GetProjMatrix() {
 		return proj_matrix_;
+	}
+	vec3 GetWorldPos() {
+		return position_;
+	}
+	void UpdateAspect(float aspect) {
+		aspect_ = aspect;
+		proj_matrix_ = perspective(radians(fov_y_), aspect_, near_, far_);
 	}
 	~Camera() {}
 private:

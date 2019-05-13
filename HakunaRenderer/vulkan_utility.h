@@ -903,44 +903,6 @@ public:
 		EndSingleTimeCommands(vk_contex, commandBuffer, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily));
 	}
 
-	static void CreateDescriptorSetLayout(VulkanContex& vk_contex,uint32_t material_tex_num) {
-		VkDescriptorSetLayoutBinding uboLayoutBinding = {};
-		uboLayoutBinding.binding = 0;
-		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		//descriptorCount specifies the number of values in the array. 
-		uboLayoutBinding.descriptorCount = 1;
-		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-		uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-		VkDescriptorSetLayoutBinding samplerLayoutBinding = {};
-		samplerLayoutBinding.binding = 1;
-		samplerLayoutBinding.descriptorCount = 1;
-		samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		samplerLayoutBinding.pImmutableSamplers = nullptr;
-		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-		std::vector<VkDescriptorSetLayoutBinding> bindings(1 + material_tex_num);
-		bindings[0] = uboLayoutBinding;
-		for (int i = 1; i < bindings.size(); i++) {
-			VkDescriptorSetLayoutBinding samplerLayoutBinding = {};
-			samplerLayoutBinding.binding = i;
-			samplerLayoutBinding.descriptorCount = 1;
-			samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			samplerLayoutBinding.pImmutableSamplers = nullptr;
-			samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-			bindings[i] = samplerLayoutBinding;
-		}
-
-		VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-		layoutInfo.pBindings = bindings.data();
-
-		if (vkCreateDescriptorSetLayout(vk_contex.logical_device, &layoutInfo, nullptr, &vk_contex.descriptor_set_layout) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create descriptor set layout!");
-		}
-	}
-
 	static VkShaderModule CreateShaderModule(const VulkanContex& vk_contex, const std::vector<char>& code) {
 		VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
 		shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
