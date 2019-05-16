@@ -15,12 +15,13 @@ public:
 		VkSampler texture_sampler;
 		uint32_t miplevel_size;
 	};
-	std::map<string, shared_ptr<Texture>> tex_dict;
+	std::map<string, shared_ptr<Texture>> tex_dict_;
 	TextureMgr();
 	void CreateTextureImage(const VulkanUtility::VulkanContex& vk_contex, string file_path, string tex_name);
+	void CreateExrTextureImage(const VulkanUtility::VulkanContex& vk_contex, string file_path, string tex_name);
 	void CreateTextureSampler(const VulkanUtility::VulkanContex& vk_contex, Texture& tex);
 	shared_ptr<Texture> GetTextureByName(string tex_name);
-	void CleanUpTextures(const VulkanUtility::VulkanContex vk_contex);
+	void CleanUpTextures(const VulkanUtility::VulkanContex& vk_contex);
 	~TextureMgr();
 private:
 

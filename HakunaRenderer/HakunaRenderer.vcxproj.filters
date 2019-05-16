@@ -18,12 +18,6 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ShaderManager.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="VertexDataManager.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="HakunaRenderer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -39,14 +33,20 @@
     <ClCompile Include="directional_light.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="mesh_mgr.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="mesh.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="shader_manager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="vertex.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ShaderManager.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="VertexDataManager.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="HakunaRenderer.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -63,6 +63,21 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="directional_light.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="mesh_mgr.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="mesh.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="shader_manager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="vertex.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="tinyexr.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

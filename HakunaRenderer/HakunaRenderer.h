@@ -14,12 +14,12 @@
 #include <cstdlib>
 #include <set>
 #include <algorithm>
-#include "ShaderManager.h"
-#include "VertexDataManager.h"
+#include "shader_manager.h"
 #include "vulkan_utility.h"
 #include "camera.h"
 #include "texture_mgr.h"
 #include "directional_light.h"
+#include "mesh_mgr.h"
 using namespace std;
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -73,13 +73,6 @@ private:
 
 	vector<VkCommandBuffer> command_buffers_;//with the size of swapChain image count.
 
-	//TextureMgr::Texture diffuse_texture_;
-
-	VkBuffer vertex_buffer_;
-	VkDeviceMemory vertex_buffer_memory_;
-	VkBuffer index_buffer_;
-	VkDeviceMemory index_buffer_memory_;
-
 	struct MVPBufferSturct {
 		VkBuffer mvp_buffer;
 		VkDeviceMemory mvp_buffer_memory;
@@ -106,14 +99,14 @@ private:
 	vector<VkSemaphore> render_finished_semaphores_;
 	vector<VkFence> in_flight_fences_;
 	size_t current_frame_ = 0;
-	unique_ptr<VertexDataManager> vertex_data_mgr_;
+	MeshMgr mesh_mgr_;
 	/*Although many drivers and platforms trigger VK_ERROR_OUT_OF_DATE_KHR automatically after a window resize, 
 	it is not guaranteed to happen. That's why we'll add some extra code to also handle resizes explicitly. */
 	bool framebuffer_resized_ = false;
 public:
 	HakunaRenderer():
 		main_light_(vec3(1,1,1),vec3(1.0,0.9,0.8),1.5f){
-		LoadMeshFromFile("models/gun.obj");
+
 		InitWindow();
 		InitVulkan();
 		Camera temp_cam(60.f, vk_contex_.swapchain_extent.width / (float)vk_contex_.swapchain_extent.height, 100.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
@@ -140,9 +133,6 @@ private:
 	void CreateCommandBuffers();
 	void DrawFrame();
 	void CreateSyncObjects();
-
-	void CreateVertexBuffer();
-	void CreateIndexBuffer();
 	void CreateUniformBuffers();
 	void UpdateUniformBuffer(uint32_t currentImage);
 	void CreateDescriptorPool();
@@ -166,9 +156,6 @@ private:
 
 		return VK_FALSE;
 	}
-
-
-	void LoadMeshFromFile(string mesh_file_path);
 
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 		auto app = reinterpret_cast<HakunaRenderer*>(glfwGetWindowUserPointer(window));

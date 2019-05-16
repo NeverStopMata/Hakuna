@@ -22,14 +22,17 @@ void HakunaRenderer::InitVulkan()
 	VulkanUtility::CreateDepthResources(vk_contex_);
 	VulkanUtility::CreateFramebuffers(vk_contex_);
 	CreateDescriptorPool();
-	CreateVertexBuffer();
-	CreateIndexBuffer();
 	CreateUniformBuffers();
+
+	texture_mgr_.CreateExrTextureImage(this->vk_contex_, "textures/skybox_tex/grace-new.exr", "sky");
+	
 	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_basecolor.png", "basecolor");
 	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_metallic.png", "metallic");
 	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_normal.png", "normal");
 	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_occlusion.png", "occlusion");
 	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_roughness.png", "roughness");
+	mesh_mgr_.Init(&vk_contex_);
+	mesh_mgr_.LoadModelFromFile("models/gun.obj", "gun");
 	CreateDescriptorSets();
 	CreateCommandBuffers();
 	CreateSyncObjects();
@@ -59,10 +62,6 @@ void HakunaRenderer::SetupDebugMessenger() {
 	}
 }
 
-void HakunaRenderer::LoadMeshFromFile(string mesh_file_path) {
-	vertex_data_mgr_ = std::make_unique<VertexDataManager>();
-	vertex_data_mgr_->LoadModelFromFile(mesh_file_path);
-}
 
 
 void HakunaRenderer::CreateCommandBuffers() {
@@ -101,15 +100,15 @@ void HakunaRenderer::CreateCommandBuffers() {
 		renderPassInfo.pClearValues = clearValues.data();
 		vkCmdBeginRenderPass(command_buffers_[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.graphics_pipeline);
-		VkBuffer vertexBuffers[] = { vertex_buffer_ };
+		VkBuffer vertexBuffers[] = { mesh_mgr_.GetMeshByName("gun")->vertex_buffer_ };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(command_buffers_[i], 0, 1, vertexBuffers, offsets);
-		vkCmdBindIndexBuffer(command_buffers_[i], index_buffer_, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(command_buffers_[i], mesh_mgr_.GetMeshByName("gun")->index_buffer_, 0, VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(
 			command_buffers_[i],
 			VK_PIPELINE_BIND_POINT_GRAPHICS, 
 			vk_contex_.pipeline_layout, 0, 1, &descriptor_sets_[i], 0, nullptr);
-		vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(vertex_data_mgr_->indices_.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(mesh_mgr_.GetMeshByName("gun")->indices_.size()), 1, 0, 0, 0);
 		vkCmdEndRenderPass(command_buffers_[i]);
 		if (vkEndCommandBuffer(command_buffers_[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer!");
@@ -206,82 +205,82 @@ void HakunaRenderer::CreateSyncObjects() {
 	}
 }
 
-void HakunaRenderer::CreateVertexBuffer() {
-	std::vector<uint32_t> stadingBufferQueueFamilyIndices{ static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily)};
-	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{ 
-		static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily),
-		static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily)};
-	VkDeviceSize bufferSize = sizeof(vertex_data_mgr_->vertices_[0]) * vertex_data_mgr_->vertices_.size();
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	VulkanUtility::CreateBuffer(vk_contex_, bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-		stagingBuffer, 
-		stagingBufferMemory,
-		1, nullptr);
-
-	void* data;
-	vkMapMemory(vk_contex_.logical_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, vertex_data_mgr_->vertices_.data(), (size_t)bufferSize);
-	vkUnmapMemory(vk_contex_.logical_device, stagingBufferMemory);
-
-	VulkanUtility::CreateBuffer(vk_contex_,
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		vertex_buffer_, 
-		vertex_buffer_memory_,
-		2,
-		deviceLocalBufferQueueFamilyIndices.data());
-	
-	VulkanUtility::CopyBuffer(vk_contex_, stagingBuffer, vertex_buffer_, bufferSize);
-
-	vkDestroyBuffer(vk_contex_.logical_device, stagingBuffer, nullptr);
-	vkFreeMemory(vk_contex_.logical_device, stagingBufferMemory, nullptr);
-}
-
-void HakunaRenderer::CreateIndexBuffer()
-{
-	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{
-		static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily),
-		static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily) };
-	VkDeviceSize bufferSize = sizeof(vertex_data_mgr_->indices_[0]) * vertex_data_mgr_->indices_.size();
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	VulkanUtility::CreateBuffer(vk_contex_,
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer, 
-		stagingBufferMemory,
-		1,
-		nullptr);
-
-	void* data;
-	vkMapMemory(vk_contex_.logical_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, vertex_data_mgr_->indices_.data(), (size_t)bufferSize);
-	vkUnmapMemory(vk_contex_.logical_device, stagingBufferMemory);
-
-	VulkanUtility::CreateBuffer(vk_contex_,
-		bufferSize, 
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | 
-		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-		index_buffer_, 
-		index_buffer_memory_,
-		2,
-		deviceLocalBufferQueueFamilyIndices.data());
-
-	VulkanUtility::CopyBuffer(vk_contex_,stagingBuffer, index_buffer_, bufferSize);
-
-	vkDestroyBuffer(vk_contex_.logical_device, stagingBuffer, nullptr);
-	vkFreeMemory(vk_contex_.logical_device, stagingBufferMemory, nullptr);
-}
+//void HakunaRenderer::CreateVertexBuffer() {
+//	std::vector<uint32_t> stadingBufferQueueFamilyIndices{ static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily)};
+//	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{ 
+//		static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily),
+//		static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily)};
+//	VkDeviceSize bufferSize = sizeof(vertex_data_mgr_->vertices_[0]) * vertex_data_mgr_->vertices_.size();
+//
+//	VkBuffer stagingBuffer;
+//	VkDeviceMemory stagingBufferMemory;
+//	VulkanUtility::CreateBuffer(vk_contex_, bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+//		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+//		stagingBuffer, 
+//		stagingBufferMemory,
+//		1, nullptr);
+//
+//	void* data;
+//	vkMapMemory(vk_contex_.logical_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+//	memcpy(data, vertex_data_mgr_->vertices_.data(), (size_t)bufferSize);
+//	vkUnmapMemory(vk_contex_.logical_device, stagingBufferMemory);
+//
+//	VulkanUtility::CreateBuffer(vk_contex_,
+//		bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+//		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+//		vertex_buffer_, 
+//		vertex_buffer_memory_,
+//		2,
+//		deviceLocalBufferQueueFamilyIndices.data());
+//	
+//	VulkanUtility::CopyBuffer(vk_contex_, stagingBuffer, vertex_buffer_, bufferSize);
+//
+//	vkDestroyBuffer(vk_contex_.logical_device, stagingBuffer, nullptr);
+//	vkFreeMemory(vk_contex_.logical_device, stagingBufferMemory, nullptr);
+//}
+//
+//void HakunaRenderer::CreateIndexBuffer()
+//{
+//	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{
+//		static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily),
+//		static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily) };
+//	VkDeviceSize bufferSize = sizeof(vertex_data_mgr_->indices_[0]) * vertex_data_mgr_->indices_.size();
+//
+//	VkBuffer stagingBuffer;
+//	VkDeviceMemory stagingBufferMemory;
+//	VulkanUtility::CreateBuffer(vk_contex_,
+//		bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+//		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+//		stagingBuffer, 
+//		stagingBufferMemory,
+//		1,
+//		nullptr);
+//
+//	void* data;
+//	vkMapMemory(vk_contex_.logical_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+//	memcpy(data, vertex_data_mgr_->indices_.data(), (size_t)bufferSize);
+//	vkUnmapMemory(vk_contex_.logical_device, stagingBufferMemory);
+//
+//	VulkanUtility::CreateBuffer(vk_contex_,
+//		bufferSize, 
+//		VK_BUFFER_USAGE_TRANSFER_DST_BIT | 
+//		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
+//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
+//		index_buffer_, 
+//		index_buffer_memory_,
+//		2,
+//		deviceLocalBufferQueueFamilyIndices.data());
+//
+//	VulkanUtility::CopyBuffer(vk_contex_,stagingBuffer, index_buffer_, bufferSize);
+//
+//	vkDestroyBuffer(vk_contex_.logical_device, stagingBuffer, nullptr);
+//	vkFreeMemory(vk_contex_.logical_device, stagingBufferMemory, nullptr);
+//}
 
 
 
@@ -391,10 +390,7 @@ void HakunaRenderer::Cleanup()
 		vkDestroyBuffer(vk_contex_.logical_device, params_ubos_[i].params_buffer, nullptr);
 		vkFreeMemory(vk_contex_.logical_device, params_ubos_[i].params_buffer_memory, nullptr);
 	}
-	vkDestroyBuffer(vk_contex_.logical_device, vertex_buffer_, nullptr);
-	vkFreeMemory(vk_contex_.logical_device, vertex_buffer_memory_, nullptr);
-	vkDestroyBuffer(vk_contex_.logical_device, index_buffer_, nullptr);
-	vkFreeMemory(vk_contex_.logical_device, index_buffer_memory_, nullptr);
+	mesh_mgr_.CleanUpMeshDict();
 	texture_mgr_.CleanUpTextures(vk_contex_);
 	vkDestroyDescriptorPool(vk_contex_.logical_device, vk_contex_.descriptor_pool, nullptr);
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -444,7 +440,6 @@ void HakunaRenderer::CreateDescriptorSets() {
 		params_buffer_info.offset = 0;
 		params_buffer_info.range = sizeof(UboParams);
 
-
 		std::vector<VkWriteDescriptorSet> descriptorWrites(3 + material_tex_names_.size());
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -488,25 +483,6 @@ void HakunaRenderer::CreateDescriptorSets() {
 			descriptorWrites[k].descriptorCount = 1;
 			descriptorWrites[k].pImageInfo = &descriptor_image_infos[k - 3];
 		}
-		//std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
-		//descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		//descriptorWrites[0].dstSet = descriptor_sets_[i];
-		//descriptorWrites[0].dstBinding = 0;
-		//descriptorWrites[0].dstArrayElement = 0;
-		//descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		//descriptorWrites[0].descriptorCount = 1; //more than one for texture array
-		//descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-		//
-		//descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		//descriptorWrites[1].dstSet = descriptor_sets_[i];
-		//descriptorWrites[1].dstBinding = 1;
-		//descriptorWrites[1].dstArrayElement = 0;
-		//descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		//descriptorWrites[1].descriptorCount = descriptor_image_infos.size();
-		//descriptorWrites[1].pImageInfo = descriptor_image_infos.data();
-
-
 		vkUpdateDescriptorSets(vk_contex_.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
 

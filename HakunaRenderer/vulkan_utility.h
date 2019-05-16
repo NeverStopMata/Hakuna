@@ -5,8 +5,8 @@
 #include <vector>
 #include <set>
 #include <array>
-#include "ShaderManager.h"
-#include "VertexDataManager.h"
+#include "shader_manager.h"
+#include "vertex.h"
 using namespace std;
 const vector<const char*> validationLayers = {
 "VK_LAYER_LUNARG_standard_validation"
@@ -21,7 +21,6 @@ const bool enableValidationLayers = false;
 #else
 const bool enableValidationLayers = true;
 #endif
-
 class VulkanUtility {
 
 public:
