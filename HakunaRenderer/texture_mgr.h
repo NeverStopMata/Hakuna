@@ -18,12 +18,12 @@ public:
 	std::map<string, shared_ptr<Texture>> tex_dict_;
 	TextureMgr();
 	void CreateTextureImage(const VulkanUtility::VulkanContex& vk_contex, string file_path, string tex_name);
-	void CreateExrTextureImage(const VulkanUtility::VulkanContex& vk_contex, string file_path, string tex_name);
-	void CreateTextureSampler(const VulkanUtility::VulkanContex& vk_contex, Texture& tex);
+	/*void CreateTextureCube(const VulkanUtility::VulkanContex& vk_contex, string file_path, string tex_name);*/
 	shared_ptr<Texture> GetTextureByName(string tex_name);
 	void CleanUpTextures(const VulkanUtility::VulkanContex& vk_contex);
 	~TextureMgr();
 private:
+	void CreateTextureSampler(const VulkanUtility::VulkanContex& vk_contex, Texture& tex);
 
 };
 

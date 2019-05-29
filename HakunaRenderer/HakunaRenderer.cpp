@@ -14,18 +14,20 @@ void HakunaRenderer::InitVulkan()
 	VulkanUtility::CreateSwapChain(vk_contex_,window_);
 	VulkanUtility::CreateImageViewsForSwapChain(vk_contex_);
 	VulkanUtility::CreateRenderPass(vk_contex_);
-	CreateDescriptorSetLayout();
-	VulkanUtility::CreateGraphicsPipeline(vk_contex_);
+	VulkanUtility::CreateDescriptorSetLayout(vk_contex_);
+	CreateGraphicPipeline();
 	VulkanUtility::CreateCommandPools(vk_contex_);
 
 	VulkanUtility::CreateColorResources(vk_contex_);
 	VulkanUtility::CreateDepthResources(vk_contex_);
 	VulkanUtility::CreateFramebuffers(vk_contex_);
-	CreateDescriptorPool();
+	VulkanUtility::CreateDescriptorPool(vk_contex_);
 	CreateUniformBuffers();
 
-	texture_mgr_.CreateExrTextureImage(this->vk_contex_, "textures/skybox_tex/grace-new.exr", "sky");
-	
+	/*texture_mgr_.CreateTextureCube(this->vk_contex_, "textures/skybox_tex/sky_cubemap.png", "sky_texcube");*/
+	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/skybox_tex/sky.png", "sky_tex2d");
+	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/skybox_tex/diffuse_convolution.png", "diffuse_convolution");
+	//texture_mgr_.CreateExrTextureImage(this->vk_contex_, "textures/skybox_tex/grace-new.exr", "sky_tex");
 	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_basecolor.png", "basecolor");
 	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_metallic.png", "metallic");
 	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_normal.png", "normal");
@@ -33,7 +35,9 @@ void HakunaRenderer::InitVulkan()
 	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_roughness.png", "roughness");
 	mesh_mgr_.Init(&vk_contex_);
 	mesh_mgr_.LoadModelFromFile("models/gun.obj", "gun");
-	CreateDescriptorSets();
+	mesh_mgr_.LoadModelFromFile("models/sky.obj", "sky");
+	CreateOpaqueDescriptorSets();
+	CreateSkyboxDescriptorSets();
 	CreateCommandBuffers();
 	CreateSyncObjects();
 
@@ -62,6 +66,132 @@ void HakunaRenderer::SetupDebugMessenger() {
 	}
 }
 
+void HakunaRenderer::CreateGraphicPipeline() {
+	std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
+	auto bindingDescription = Vertex::GetBindingDescription();
+	auto attributeDescriptions = Vertex::GetAttributeDescriptions();
+	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
+	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+	//用于tranform
+	VkViewport viewport = {};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = (float)vk_contex_.swapchain_extent.width;
+	viewport.height = (float)vk_contex_.swapchain_extent.height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	//用于裁剪
+	VkRect2D scissor = {};
+	scissor.offset = { 0, 0 };
+	scissor.extent = vk_contex_.swapchain_extent;
+
+	VkPipelineViewportStateCreateInfo viewportState = {};
+	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportState.viewportCount = 1;
+	viewportState.pViewports = &viewport;
+	viewportState.scissorCount = 1;
+	viewportState.pScissors = &scissor;
+
+	VkPipelineRasterizationStateCreateInfo rasterizer = {};
+	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizer.depthClampEnable = VK_FALSE;
+	rasterizer.rasterizerDiscardEnable = VK_FALSE;
+	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;//point line fragment
+	rasterizer.lineWidth = 1.0f;
+	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizer.depthBiasEnable = VK_FALSE;//used for shadow map
+
+	VkPipelineMultisampleStateCreateInfo multisampling = {};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = VK_TRUE; // enable sample shading in the pipeline
+	multisampling.minSampleShading = .2f; // min fraction for sample shading; closer to one is smoother
+	multisampling.rasterizationSamples = vk_contex_.msaasample_size;
+	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	colorBlendAttachment.blendEnable = VK_FALSE;
+
+	VkPipelineColorBlendStateCreateInfo colorBlending = {};
+	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlending.logicOpEnable = VK_FALSE;
+	colorBlending.logicOp = VK_LOGIC_OP_COPY;
+	colorBlending.attachmentCount = 1;
+	colorBlending.pAttachments = &colorBlendAttachment;
+	colorBlending.blendConstants[0] = 0.0f;
+	colorBlending.blendConstants[1] = 0.0f;
+	colorBlending.blendConstants[2] = 0.0f;
+	colorBlending.blendConstants[3] = 0.0f;
+
+	VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencil.depthTestEnable = VK_TRUE;
+	depthStencil.depthWriteEnable = VK_TRUE;
+	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencil.depthBoundsTestEnable = VK_FALSE;
+	depthStencil.minDepthBounds = 0.0f; // Optional
+	depthStencil.maxDepthBounds = 1.0f; // Optional
+	depthStencil.stencilTestEnable = VK_FALSE;
+	depthStencil.front = {}; // Optional
+	depthStencil.back = {}; // Optional
+
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &vk_contex_.descriptor_set_layout;
+	pipelineLayoutInfo.pushConstantRangeCount = 0;
+
+	if (vkCreatePipelineLayout(vk_contex_.logical_device, &pipelineLayoutInfo, nullptr, &vk_contex_.pipeline_layout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create pipeline layout!");
+	}
+
+	VkGraphicsPipelineCreateInfo pipelineInfo = {};
+	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	/*referencing the array of VkPipelineShaderStageCreateInfo structs.*/
+	pipelineInfo.stageCount = shaderStages.size();
+	pipelineInfo.pStages = shaderStages.data();
+	/*the fixed - function stage.*/
+	pipelineInfo.pVertexInputState = &vertexInputInfo;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	pipelineInfo.pViewportState = &viewportState;
+	pipelineInfo.pRasterizationState = &rasterizer;
+	pipelineInfo.pMultisampleState = &multisampling;
+	pipelineInfo.pDepthStencilState = nullptr; // Optional
+	pipelineInfo.pColorBlendState = &colorBlending;
+	pipelineInfo.pDepthStencilState = &depthStencil;
+	pipelineInfo.pDynamicState = nullptr; // Optional
+
+	pipelineInfo.layout = vk_contex_.pipeline_layout;
+
+	pipelineInfo.renderPass = vk_contex_.renderpass;
+	pipelineInfo.subpass = 0;
+
+	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+	pipelineInfo.basePipelineIndex = -1; // Optional
+
+	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/opaque_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/opaque_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	if (vkCreateGraphicsPipelines(vk_contex_.logical_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk_contex_.pipeline_struct.opaque_pipeline) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create graphics pipeline!");
+	}
+
+	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/skybox_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/skybox_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	if (vkCreateGraphicsPipelines(vk_contex_.logical_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk_contex_.pipeline_struct.skybox_pipeline) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create graphics pipeline!");
+	}
+	
+}
 
 
 void HakunaRenderer::CreateCommandBuffers() {
@@ -99,16 +229,26 @@ void HakunaRenderer::CreateCommandBuffers() {
 		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
 		renderPassInfo.pClearValues = clearValues.data();
 		vkCmdBeginRenderPass(command_buffers_[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.graphics_pipeline);
-		VkBuffer vertexBuffers[] = { mesh_mgr_.GetMeshByName("gun")->vertex_buffer_ };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(command_buffers_[i], 0, 1, vertexBuffers, offsets);
-		vkCmdBindIndexBuffer(command_buffers_[i], mesh_mgr_.GetMeshByName("gun")->index_buffer_, 0, VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(
-			command_buffers_[i],
-			VK_PIPELINE_BIND_POINT_GRAPHICS, 
-			vk_contex_.pipeline_layout, 0, 1, &descriptor_sets_[i], 0, nullptr);
-		vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(mesh_mgr_.GetMeshByName("gun")->indices_.size()), 1, 0, 0, 0);
+		{
+			VkBuffer vertexBuffers[] = { mesh_mgr_.GetMeshByName("gun")->vertex_buffer_ };
+			VkDeviceSize offsets[] = { 0 };
+			vkCmdBindDescriptorSets(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_layout, 0, 1, &opaque_descriptor_sets_[i], 0, nullptr);
+			vkCmdBindVertexBuffers(command_buffers_[i], 0, 1, vertexBuffers, offsets);
+			vkCmdBindIndexBuffer(command_buffers_[i], mesh_mgr_.GetMeshByName("gun")->index_buffer_, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_struct.opaque_pipeline);
+			vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(mesh_mgr_.GetMeshByName("gun")->indices_.size()), 1, 0, 0, 0);
+		}
+		if(1)
+		{
+			VkBuffer vertexBuffers[] = { mesh_mgr_.GetMeshByName("sky")->vertex_buffer_ };
+			VkDeviceSize offsets[] = { 0 };
+			vkCmdBindDescriptorSets(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_layout, 0, 1, &skybox_descriptor_sets_[i], 0, nullptr);
+			vkCmdBindVertexBuffers(command_buffers_[i], 0, 1, vertexBuffers, offsets);
+			vkCmdBindIndexBuffer(command_buffers_[i], mesh_mgr_.GetMeshByName("sky")->index_buffer_, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_struct.skybox_pipeline);
+			vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(mesh_mgr_.GetMeshByName("sky")->indices_.size()), 1, 0, 0, 0);
+		}
+		
 		vkCmdEndRenderPass(command_buffers_[i]);
 		if (vkEndCommandBuffer(command_buffers_[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer!");
@@ -205,85 +345,6 @@ void HakunaRenderer::CreateSyncObjects() {
 	}
 }
 
-//void HakunaRenderer::CreateVertexBuffer() {
-//	std::vector<uint32_t> stadingBufferQueueFamilyIndices{ static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily)};
-//	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{ 
-//		static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily),
-//		static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily)};
-//	VkDeviceSize bufferSize = sizeof(vertex_data_mgr_->vertices_[0]) * vertex_data_mgr_->vertices_.size();
-//
-//	VkBuffer stagingBuffer;
-//	VkDeviceMemory stagingBufferMemory;
-//	VulkanUtility::CreateBuffer(vk_contex_, bufferSize,
-//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-//		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-//		stagingBuffer, 
-//		stagingBufferMemory,
-//		1, nullptr);
-//
-//	void* data;
-//	vkMapMemory(vk_contex_.logical_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-//	memcpy(data, vertex_data_mgr_->vertices_.data(), (size_t)bufferSize);
-//	vkUnmapMemory(vk_contex_.logical_device, stagingBufferMemory);
-//
-//	VulkanUtility::CreateBuffer(vk_contex_,
-//		bufferSize,
-//		VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-//		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
-//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-//		vertex_buffer_, 
-//		vertex_buffer_memory_,
-//		2,
-//		deviceLocalBufferQueueFamilyIndices.data());
-//	
-//	VulkanUtility::CopyBuffer(vk_contex_, stagingBuffer, vertex_buffer_, bufferSize);
-//
-//	vkDestroyBuffer(vk_contex_.logical_device, stagingBuffer, nullptr);
-//	vkFreeMemory(vk_contex_.logical_device, stagingBufferMemory, nullptr);
-//}
-//
-//void HakunaRenderer::CreateIndexBuffer()
-//{
-//	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{
-//		static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily),
-//		static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily) };
-//	VkDeviceSize bufferSize = sizeof(vertex_data_mgr_->indices_[0]) * vertex_data_mgr_->indices_.size();
-//
-//	VkBuffer stagingBuffer;
-//	VkDeviceMemory stagingBufferMemory;
-//	VulkanUtility::CreateBuffer(vk_contex_,
-//		bufferSize,
-//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-//		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-//		stagingBuffer, 
-//		stagingBufferMemory,
-//		1,
-//		nullptr);
-//
-//	void* data;
-//	vkMapMemory(vk_contex_.logical_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-//	memcpy(data, vertex_data_mgr_->indices_.data(), (size_t)bufferSize);
-//	vkUnmapMemory(vk_contex_.logical_device, stagingBufferMemory);
-//
-//	VulkanUtility::CreateBuffer(vk_contex_,
-//		bufferSize, 
-//		VK_BUFFER_USAGE_TRANSFER_DST_BIT | 
-//		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
-//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-//		index_buffer_, 
-//		index_buffer_memory_,
-//		2,
-//		deviceLocalBufferQueueFamilyIndices.data());
-//
-//	VulkanUtility::CopyBuffer(vk_contex_,stagingBuffer, index_buffer_, bufferSize);
-//
-//	vkDestroyBuffer(vk_contex_.logical_device, stagingBuffer, nullptr);
-//	vkFreeMemory(vk_contex_.logical_device, stagingBufferMemory, nullptr);
-//}
-
-
-
 void HakunaRenderer::ReCreateSwapChain() {
 	int width = 0, height = 0;
 	while (width == 0 || height == 0) {
@@ -296,7 +357,7 @@ void HakunaRenderer::ReCreateSwapChain() {
 	VulkanUtility::CreateSwapChain(vk_contex_, window_);
 	VulkanUtility::CreateImageViewsForSwapChain(vk_contex_);
 	VulkanUtility::CreateRenderPass(vk_contex_);
-	VulkanUtility::CreateGraphicsPipeline(vk_contex_);
+	CreateGraphicPipeline();
 	VulkanUtility::CreateColorResources(vk_contex_);
 	VulkanUtility::CreateDepthResources(vk_contex_);
 	VulkanUtility::CreateFramebuffers(vk_contex_);
@@ -380,6 +441,7 @@ void HakunaRenderer::UpdateUniformBuffer(uint32_t currentImage) {
 }
 void HakunaRenderer::Cleanup()
 {
+	shader_mgr_.CleanShaderModules(vk_contex_);
 	VulkanUtility::CleanupSwapChain(vk_contex_, command_buffers_);
 	vkDestroyDescriptorSetLayout(vk_contex_.logical_device, vk_contex_.descriptor_set_layout, nullptr);
 	for (size_t i = 0; i < vk_contex_.swapchain_images.size(); i++) {
@@ -412,16 +474,15 @@ void HakunaRenderer::Cleanup()
 	glfwTerminate();
 }
 
-
-void HakunaRenderer::CreateDescriptorSets() {
+void HakunaRenderer::CreateOpaqueDescriptorSets() {
 	std::vector<VkDescriptorSetLayout> layouts(vk_contex_.swapchain_images.size(), vk_contex_.descriptor_set_layout);
 	VkDescriptorSetAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = vk_contex_.descriptor_pool;
 	allocInfo.descriptorSetCount = static_cast<uint32_t>(vk_contex_.swapchain_images.size());
 	allocInfo.pSetLayouts = layouts.data();
-	descriptor_sets_.resize(vk_contex_.swapchain_images.size());
-	if (vkAllocateDescriptorSets(vk_contex_.logical_device, &allocInfo, descriptor_sets_.data()) != VK_SUCCESS) {
+	opaque_descriptor_sets_.resize(vk_contex_.swapchain_images.size());
+	if (vkAllocateDescriptorSets(vk_contex_.logical_device, &allocInfo, opaque_descriptor_sets_.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
 	for (size_t i = 0; i < vk_contex_.swapchain_images.size(); i++) {
@@ -443,7 +504,7 @@ void HakunaRenderer::CreateDescriptorSets() {
 		std::vector<VkWriteDescriptorSet> descriptorWrites(3 + material_tex_names_.size());
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = descriptor_sets_[i];
+		descriptorWrites[0].dstSet = opaque_descriptor_sets_[i];
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -451,7 +512,7 @@ void HakunaRenderer::CreateDescriptorSets() {
 		descriptorWrites[0].pBufferInfo = &mvp_buffer_Info;
 
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = descriptor_sets_[i];
+		descriptorWrites[1].dstSet = opaque_descriptor_sets_[i];
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -459,7 +520,7 @@ void HakunaRenderer::CreateDescriptorSets() {
 		descriptorWrites[1].pBufferInfo = &direc_light_buffer_info;
 
 		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[2].dstSet = descriptor_sets_[i];
+		descriptorWrites[2].dstSet = opaque_descriptor_sets_[i];
 		descriptorWrites[2].dstBinding = 2;
 		descriptorWrites[2].dstArrayElement = 0;
 		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -474,9 +535,9 @@ void HakunaRenderer::CreateDescriptorSets() {
 			descriptor_image_infos[j].sampler = texture_mgr_.GetTextureByName(material_tex_names_[j])->texture_sampler;
 		}
 
-		for (int k = 3; k < descriptorWrites.size();k++) {
+		for (int k = 3; k < descriptorWrites.size(); k++) {
 			descriptorWrites[k].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[k].dstSet = descriptor_sets_[i];
+			descriptorWrites[k].dstSet = opaque_descriptor_sets_[i];
 			descriptorWrites[k].dstBinding = k;
 			descriptorWrites[k].dstArrayElement = 0;
 			descriptorWrites[k].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -485,222 +546,78 @@ void HakunaRenderer::CreateDescriptorSets() {
 		}
 		vkUpdateDescriptorSets(vk_contex_.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
-
 }
 
-void HakunaRenderer::CreateDescriptorSetLayout(){
-		VkDescriptorSetLayoutBinding mvp_ubo_layout_binding = {};
-		mvp_ubo_layout_binding.binding = 0;
-		mvp_ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		//descriptorCount specifies the number of values in the array. 
-		mvp_ubo_layout_binding.descriptorCount = 1;
-		mvp_ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-		mvp_ubo_layout_binding.pImmutableSamplers = nullptr; // Optional
-
-		VkDescriptorSetLayoutBinding direc_light_ubo_layout_binding = {};
-		direc_light_ubo_layout_binding.binding = 1;
-		direc_light_ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		//descriptorCount specifies the number of values in the array. 
-		direc_light_ubo_layout_binding.descriptorCount = 1;
-		direc_light_ubo_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		direc_light_ubo_layout_binding.pImmutableSamplers = nullptr; // Optional
-
-		VkDescriptorSetLayoutBinding params_ubo_layout_binding = {};
-		params_ubo_layout_binding.binding = 2;
-		params_ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		//descriptorCount specifies the number of values in the array. 
-		params_ubo_layout_binding.descriptorCount = 1;
-		params_ubo_layout_binding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
-		params_ubo_layout_binding.pImmutableSamplers = nullptr; // Optional
-
-
-
-		std::vector<VkDescriptorSetLayoutBinding> bindings(3 + material_tex_names_.size());
-		bindings[0] = mvp_ubo_layout_binding;
-		bindings[1] = direc_light_ubo_layout_binding;
-		bindings[2] = params_ubo_layout_binding;
-		for (int i = 3; i < bindings.size(); i++) {
-			VkDescriptorSetLayoutBinding samplerLayoutBinding = {};
-			samplerLayoutBinding.binding = i;
-			samplerLayoutBinding.descriptorCount = 1;
-			samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			samplerLayoutBinding.pImmutableSamplers = nullptr;
-			samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-			bindings[i] = samplerLayoutBinding;
-		}
-
-		VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-		layoutInfo.pBindings = bindings.data();
-
-		if (vkCreateDescriptorSetLayout(vk_contex_.logical_device, &layoutInfo, nullptr, &vk_contex_.descriptor_set_layout) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create descriptor set layout!");
-		}
-}
-
-void HakunaRenderer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) {
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands(static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily));
-
-	VkImageMemoryBarrier barrier = {};
-	if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
-		if (VulkanUtility::HasStencilComponent(format)) {
-			barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-		}
+void HakunaRenderer::CreateSkyboxDescriptorSets() {
+	std::vector<VkDescriptorSetLayout> layouts(vk_contex_.swapchain_images.size(), vk_contex_.descriptor_set_layout);
+	VkDescriptorSetAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = vk_contex_.descriptor_pool;
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(vk_contex_.swapchain_images.size());
+	allocInfo.pSetLayouts = layouts.data();
+	skybox_descriptor_sets_.resize(vk_contex_.swapchain_images.size());
+	if (vkAllocateDescriptorSets(vk_contex_.logical_device, &allocInfo, skybox_descriptor_sets_.data()) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
-	else {
-		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	}
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.oldLayout = oldLayout;
-	barrier.newLayout = newLayout;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image = image;
-	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = mipLevels;
-	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
-	VkPipelineStageFlags sourceStage;
-	VkPipelineStageFlags destinationStage;
+	int i = 0;
+	i++;
+	i = i * 5;
 
-	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	for (size_t i = 0; i < vk_contex_.swapchain_images.size(); i++) {
+		VkDescriptorBufferInfo mvp_buffer_Info = {};
+		mvp_buffer_Info.buffer = mvp_ubos_[i].mvp_buffer;
+		mvp_buffer_Info.offset = 0;
+		mvp_buffer_Info.range = sizeof(UboMVP);
 
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	} else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		VkDescriptorBufferInfo direc_light_buffer_info = {};
+		direc_light_buffer_info.buffer = directional_light_ubos_[i].directional_light_buffer;
+		direc_light_buffer_info.offset = 0;
+		direc_light_buffer_info.range = sizeof(UboDirectionalLights);
 
-		sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-		destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	} else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		VkDescriptorBufferInfo params_buffer_info = {};
+		params_buffer_info.buffer = params_ubos_[i].params_buffer;
+		params_buffer_info.offset = 0;
+		params_buffer_info.range = sizeof(UboParams);
 
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	} else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	} else {
-		throw std::invalid_argument("unsupported layout transition!");
-	}
-	vkCmdPipelineBarrier(
-		commandBuffer,
-		sourceStage, destinationStage,
-		0,
-		0, nullptr,
-		0, nullptr,
-		1, &barrier
-	);
-	endSingleTimeCommands(commandBuffer, static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily));
-}
+		VkDescriptorImageInfo descriptor_image_info;
+		descriptor_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		descriptor_image_info.imageView = texture_mgr_.GetTextureByName("sky_tex2d")->texture_image_view;
+		descriptor_image_info.sampler = texture_mgr_.GetTextureByName("sky_tex2d")->texture_sampler;
 
+		std::vector<VkWriteDescriptorSet> descriptorWrites(4);
 
-void HakunaRenderer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands(static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily));
-	VkBufferImageCopy region = {};
-	region.bufferOffset = 0;
-	region.bufferRowLength = 0;
-	region.bufferImageHeight = 0;
+		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[0].dstSet = skybox_descriptor_sets_[i];
+		descriptorWrites[0].dstBinding = 0;
+		descriptorWrites[0].dstArrayElement = 0;
+		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites[0].descriptorCount = 1;
+		descriptorWrites[0].pBufferInfo = &mvp_buffer_Info;
 
-	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	region.imageSubresource.mipLevel = 0;
-	region.imageSubresource.baseArrayLayer = 0;
-	region.imageSubresource.layerCount = 1;
+		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[1].dstSet = skybox_descriptor_sets_[i];
+		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstArrayElement = 0;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites[1].descriptorCount = 1;
+		descriptorWrites[1].pBufferInfo = &direc_light_buffer_info;
 
-	region.imageOffset = { 0, 0, 0 };
-	region.imageExtent = {
-		width,
-		height,
-		1
-	};
-	vkCmdCopyBufferToImage(
-		commandBuffer,
-		buffer,
-		image,
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		1,
-		&region
-	);
-	endSingleTimeCommands(commandBuffer, static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily));
-}
+		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[2].dstSet = skybox_descriptor_sets_[i];
+		descriptorWrites[2].dstBinding = 2;
+		descriptorWrites[2].dstArrayElement = 0;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites[2].descriptorCount = 1;
+		descriptorWrites[2].pBufferInfo = &params_buffer_info;
 
-VkCommandBuffer HakunaRenderer::beginSingleTimeCommands(uint32_t queueFamilyIndex) {
-	VkCommandPool commandPool;
-	if (queueFamilyIndex == vk_contex_.queue_family_indices.transferFamily) {
-		commandPool = vk_contex_.transfer_command_pool;
-	}
-	else if (queueFamilyIndex == vk_contex_.queue_family_indices.graphicsFamily) {
-		commandPool = vk_contex_.graphic_command_pool;
-	}
-	else {
-		throw std::invalid_argument("invalid queueFamilyIndex!");
-	}
-	VkCommandBufferAllocateInfo allocInfo = {};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = commandPool;
-	allocInfo.commandBufferCount = 1;
-
-	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(vk_contex_.logical_device, &allocInfo, &commandBuffer);
-
-	VkCommandBufferBeginInfo beginInfo = {};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-	return commandBuffer;
-}
-
-void HakunaRenderer::endSingleTimeCommands(VkCommandBuffer commandBuffer, uint32_t queueFamilyIndex) {
-	VkCommandPool commandPool;
-	VkQueue queue;
-	if (queueFamilyIndex == vk_contex_.queue_family_indices.transferFamily) {
-		commandPool = vk_contex_.transfer_command_pool;
-		queue = vk_contex_.transfer_queue;
-	}
-	else if (queueFamilyIndex == vk_contex_.queue_family_indices.graphicsFamily) {
-		commandPool = vk_contex_.graphic_command_pool;
-		queue = vk_contex_.graphics_queue;
-	}
-	else {
-		throw std::invalid_argument("invalid queueFamilyIndex!");
-	}
-	vkEndCommandBuffer(commandBuffer);
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
-
-	vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(queue);
-
-	vkFreeCommandBuffers(vk_contex_.logical_device, commandPool, 1, &commandBuffer);
-}
-
-void HakunaRenderer::CreateDescriptorPool() {
-	std::array<VkDescriptorPoolSize, 2> poolSizes = {};
-	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = static_cast<uint32_t>(vk_contex_.swapchain_images.size() * 3);
-	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[1].descriptorCount = static_cast<uint32_t>(vk_contex_.swapchain_images.size() * material_tex_names_.size());
-	VkDescriptorPoolCreateInfo poolInfo = {};
-	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-	poolInfo.pPoolSizes = poolSizes.data();
-	poolInfo.maxSets = static_cast<uint32_t>(vk_contex_.swapchain_images.size());
-	if (vkCreateDescriptorPool(vk_contex_.logical_device, &poolInfo, nullptr, &vk_contex_.descriptor_pool) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create descriptor pool!");
+		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[3].dstSet = skybox_descriptor_sets_[i];
+		descriptorWrites[3].dstBinding = 3;
+		descriptorWrites[3].dstArrayElement = 0;
+		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[3].descriptorCount = 1;
+		descriptorWrites[3].pImageInfo = &descriptor_image_info;
+		vkUpdateDescriptorSets(vk_contex_.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
 }
 

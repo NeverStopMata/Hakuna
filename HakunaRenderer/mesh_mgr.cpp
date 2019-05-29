@@ -34,16 +34,19 @@ void MeshMgr::LoadModelFromFile(std::string model_path,std::string name) {
 					attrib.normals[3 * shape.mesh.indices[j].normal_index + 1],
 					attrib.normals[3 * shape.mesh.indices[j].normal_index + 2]
 				};
-				tmp_vertices[j - i].texCoord = {
-					attrib.texcoords[2 * shape.mesh.indices[j].texcoord_index + 0],
-					1.0f - attrib.texcoords[2 * shape.mesh.indices[j].texcoord_index + 1]
-				};
-
+				if (attrib.texcoords.size() != 0) {
+					tmp_vertices[j - i].texCoord = {
+						attrib.texcoords[2 * shape.mesh.indices[j].texcoord_index + 0],
+						1.0f - attrib.texcoords[2 * shape.mesh.indices[j].texcoord_index + 1]
+					};
+				}
+				else {
+					tmp_vertices[j - i].texCoord = {0,0};
+				}
 				tmp_vertices[j - i].color = { 1.0f, 1.0f, 1.0f };
-				//vertices_.push_back(tmp_vertices[j - i]);
 			}
-
-			CalculateTangents(tmp_vertices);
+			if (attrib.texcoords.size() != 0)
+				CalculateTangents(tmp_vertices);
 			for (int k = 0; k < 3; k++) {
 				if (uniqueVertices.count(tmp_vertices[k]) == 0) {
 					uniqueVertices[tmp_vertices[k]] = static_cast<uint32_t>(new_mesh_ptr_->vertices_.size());

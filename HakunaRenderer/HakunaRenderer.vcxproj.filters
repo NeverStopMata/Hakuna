@@ -82,10 +82,16 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\xshader.frag">
+    <None Include="shaders\opaque.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\xshader.vert">
+    <None Include="shaders\opaque.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\skybox.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\skybox.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

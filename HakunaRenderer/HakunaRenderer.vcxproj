@@ -91,7 +91,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\tiny_obj_loader;D:\SDK\Vulkan\1.1.106.0\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\Vulkan\1.1.106.0\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -109,7 +109,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\tiny_obj_loader;D:\SDK\Vulkan\1.1.106.0\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\Vulkan\1.1.106.0\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -129,7 +129,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\tiny_obj_loader;D:\SDK\Vulkan\1.1.106.0\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\Vulkan\1.1.106.0\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -151,7 +151,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\tiny_obj_loader;D:\SDK\Vulkan\1.1.106.0\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\Vulkan\1.1.106.0\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -188,8 +188,10 @@
     <ClInclude Include="mesh_mgr.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\xshader.frag" />
-    <None Include="shaders\xshader.vert" />
+    <None Include="shaders\opaque.frag" />
+    <None Include="shaders\opaque.vert" />
+    <None Include="shaders\skybox.frag" />
+    <None Include="shaders\skybox.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -92,14 +92,21 @@ private:
 	vector<ParamsBufferSturct> params_ubos_;
 
 
-	vector<string> material_tex_names_ = { "basecolor", "normal", "metallic", "roughness", "occlusion"};
-	vector<VkDescriptorSet> descriptor_sets_;
 
+	vector<string> material_tex_names_ = { "basecolor", "normal", "metallic", "roughness", "occlusion", "diffuse_convolution"};
+	vector<VkDescriptorSet> opaque_descriptor_sets_;
+	vector<VkDescriptorSet> skybox_descriptor_sets_;
+	struct {
+		VkDescriptorSet opaque_object;
+		VkDescriptorSet skybox;
+	}descriptor_sets_;
+	
 	vector<VkSemaphore> image_available_semaphores_;
 	vector<VkSemaphore> render_finished_semaphores_;
 	vector<VkFence> in_flight_fences_;
 	size_t current_frame_ = 0;
 	MeshMgr mesh_mgr_;
+	ShaderManager shader_mgr_;
 	/*Although many drivers and platforms trigger VK_ERROR_OUT_OF_DATE_KHR automatically after a window resize, 
 	it is not guaranteed to happen. That's why we'll add some extra code to also handle resizes explicitly. */
 	bool framebuffer_resized_ = false;
@@ -117,9 +124,27 @@ public:
 	}
 	void Loop()
 	{
+#ifdef NDEBUG
+#else
+		float min_frame_rate = 10000;
+#endif
 		while (!glfwWindowShouldClose(window_)) {
 			glfwPollEvents();
+			auto start_time = std::chrono::high_resolution_clock::now();
 			DrawFrame();
+
+#ifdef NDEBUG
+#else
+			auto end_time = std::chrono::high_resolution_clock::now();
+			float tmp_fps = 1.f / std::chrono::duration<float, std::chrono::seconds::period>(end_time - start_time).count();
+			if (tmp_fps < min_frame_rate) {
+				min_frame_rate = tmp_fps;
+				std::cout << min_frame_rate << std::endl;
+			}
+			if (tmp_fps < 100 || 1) {
+				std::cout << "low fps" << tmp_fps << std::endl;
+			}
+#endif
 		}
 		vkDeviceWaitIdle(vk_contex_.logical_device);
 	}
@@ -135,15 +160,11 @@ private:
 	void CreateSyncObjects();
 	void CreateUniformBuffers();
 	void UpdateUniformBuffer(uint32_t currentImage);
-	void CreateDescriptorPool();
+	void CreateGraphicPipeline();
+	void CreateOpaqueDescriptorSets();
+	void CreateSkyboxDescriptorSets();
+	//void CreateIrradianceMap();
 
-	void CreateDescriptorSetLayout();
-
-	void CreateDescriptorSets();
-	VkCommandBuffer beginSingleTimeCommands(uint32_t queueFamilyIndex);
-	void endSingleTimeCommands(VkCommandBuffer commandBuffer, uint32_t queueFamilyIndex);
-	void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
-	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
