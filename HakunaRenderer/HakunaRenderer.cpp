@@ -11,7 +11,7 @@ void HakunaRenderer::InitVulkan()
 	VulkanUtility::PickPhysicalDevice(vk_contex_);
 	VulkanUtility::CreateLogicalDevice(vk_contex_);
 
-	VulkanUtility::CreateSwapChain(vk_contex_,window_);
+	VulkanUtility::CreateSwapChain(vk_contex_,window_, vsync_);
 	VulkanUtility::CreateImageViewsForSwapChain(vk_contex_);
 	VulkanUtility::CreateRenderPass(vk_contex_);
 	VulkanUtility::CreateDescriptorSetLayout(vk_contex_);
@@ -24,15 +24,14 @@ void HakunaRenderer::InitVulkan()
 	VulkanUtility::CreateDescriptorPool(vk_contex_);
 	CreateUniformBuffers();
 
-	/*texture_mgr_.CreateTextureCube(this->vk_contex_, "textures/skybox_tex/sky_cubemap.png", "sky_texcube");*/
-	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/skybox_tex/sky.png", "sky_tex2d");
-	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/skybox_tex/diffuse_convolution.png", "diffuse_convolution");
-	//texture_mgr_.CreateExrTextureImage(this->vk_contex_, "textures/skybox_tex/grace-new.exr", "sky_tex");
-	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_basecolor.png", "basecolor");
-	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_metallic.png", "metallic");
-	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_normal.png", "normal");
-	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_occlusion.png", "occlusion");
-	texture_mgr_.CreateTextureImage(this->vk_contex_, "textures/gun_roughness.png", "roughness");
+	texture_mgr_.CreateTextureCube(this->vk_contex_, VK_FORMAT_R16G16B16A16_SFLOAT, "./textures/skybox_tex/hdr/uffizi_cube.ktx", "sky_texcube");
+	texture_mgr_.CreateTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM,"textures/skybox_tex/sky.png", "sky_tex2d");
+	texture_mgr_.CreateTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/skybox_tex/diffuse_convolution.png", "diffuse_convolution");
+	texture_mgr_.CreateTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_basecolor.png", "basecolor");
+	texture_mgr_.CreateTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_metallic.png", "metallic");
+	texture_mgr_.CreateTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_normal.png", "normal");
+	texture_mgr_.CreateTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_occlusion.png", "occlusion");
+	texture_mgr_.CreateTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_roughness.png", "roughness");
 	mesh_mgr_.Init(&vk_contex_);
 	mesh_mgr_.LoadModelFromFile("models/gun.obj", "gun");
 	mesh_mgr_.LoadModelFromFile("models/sky.obj", "sky");
@@ -54,7 +53,6 @@ void HakunaRenderer::InitWindow()
 
 void HakunaRenderer::SetupDebugMessenger() {
 	if (!enableValidationLayers) return;
-
 	VkDebugUtilsMessengerCreateInfoEXT messagerCreateInfo = {};
 	messagerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	messagerCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -238,7 +236,7 @@ void HakunaRenderer::CreateCommandBuffers() {
 			vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_struct.opaque_pipeline);
 			vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(mesh_mgr_.GetMeshByName("gun")->indices_.size()), 1, 0, 0, 0);
 		}
-		if(1)
+		if(is_render_skybox)
 		{
 			VkBuffer vertexBuffers[] = { mesh_mgr_.GetMeshByName("sky")->vertex_buffer_ };
 			VkDeviceSize offsets[] = { 0 };
@@ -354,7 +352,7 @@ void HakunaRenderer::ReCreateSwapChain() {
 	cam_.UpdateAspect((float)width / (float)height);
 	vkDeviceWaitIdle(vk_contex_.logical_device);
 	VulkanUtility::CleanupSwapChain(vk_contex_, command_buffers_);
-	VulkanUtility::CreateSwapChain(vk_contex_, window_);
+	VulkanUtility::CreateSwapChain(vk_contex_, window_,vsync_);
 	VulkanUtility::CreateImageViewsForSwapChain(vk_contex_);
 	VulkanUtility::CreateRenderPass(vk_contex_);
 	CreateGraphicPipeline();
@@ -581,8 +579,16 @@ void HakunaRenderer::CreateSkyboxDescriptorSets() {
 
 		VkDescriptorImageInfo descriptor_image_info;
 		descriptor_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		descriptor_image_info.imageView = texture_mgr_.GetTextureByName("sky_tex2d")->texture_image_view;
-		descriptor_image_info.sampler = texture_mgr_.GetTextureByName("sky_tex2d")->texture_sampler;
+		if (1) {
+			descriptor_image_info.imageView = texture_mgr_.GetTextureByName("sky_texcube")->texture_image_view;
+			descriptor_image_info.sampler = texture_mgr_.GetTextureByName("sky_texcube")->texture_sampler;
+		}
+		else {
+			descriptor_image_info.imageView = texture_mgr_.GetTextureByName("sky_tex2d")->texture_image_view;
+			descriptor_image_info.sampler = texture_mgr_.GetTextureByName("sky_tex2d")->texture_sampler;
+		}
+		
+		
 
 		std::vector<VkWriteDescriptorSet> descriptorWrites(4);
 

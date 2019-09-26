@@ -65,6 +65,7 @@ public:
 	DirectionalLight main_light_;
 	const int WINDOW_WIDTH = 800;
 	const int WINDOW_HEIGHT = 600;
+	bool vsync_ = false;
 private:
 	TextureMgr texture_mgr_;
 	GLFWwindow *window_;
@@ -110,13 +111,14 @@ private:
 	/*Although many drivers and platforms trigger VK_ERROR_OUT_OF_DATE_KHR automatically after a window resize, 
 	it is not guaranteed to happen. That's why we'll add some extra code to also handle resizes explicitly. */
 	bool framebuffer_resized_ = false;
+	bool is_render_skybox = true;
 public:
 	HakunaRenderer():
 		main_light_(vec3(1,1,1),vec3(1.0,0.9,0.8),1.5f){
 
 		InitWindow();
 		InitVulkan();
-		Camera temp_cam(60.f, vk_contex_.swapchain_extent.width / (float)vk_contex_.swapchain_extent.height, 100.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
+		Camera temp_cam(90.f, vk_contex_.swapchain_extent.width / (float)vk_contex_.swapchain_extent.height, 100.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
 		cam_ = temp_cam;
 	}
 	~HakunaRenderer() {
@@ -139,11 +141,9 @@ public:
 			float tmp_fps = 1.f / std::chrono::duration<float, std::chrono::seconds::period>(end_time - start_time).count();
 			if (tmp_fps < min_frame_rate) {
 				min_frame_rate = tmp_fps;
-				std::cout << min_frame_rate << std::endl;
+				std::cout << "min fps" << min_frame_rate << std::endl;
 			}
-			if (tmp_fps < 100 || 1) {
-				std::cout << "low fps" << tmp_fps << std::endl;
-			}
+			std::cout << "current fps" << tmp_fps << std::endl;
 #endif
 		}
 		vkDeviceWaitIdle(vk_contex_.logical_device);
