@@ -21,7 +21,6 @@
 #include "directional_light.h"
 #include "mesh_mgr.h"
 using namespace std;
-const int MAX_FRAMES_IN_FLIGHT = 2;
 
 
 /*
@@ -129,21 +128,27 @@ public:
 #ifdef NDEBUG
 #else
 		float min_frame_rate = 10000;
+		int frame_cnt = 0;
+		auto start_time = std::chrono::high_resolution_clock::now();
 #endif
 		while (!glfwWindowShouldClose(window_)) {
 			glfwPollEvents();
-			auto start_time = std::chrono::high_resolution_clock::now();
+			
 			DrawFrame();
 
 #ifdef NDEBUG
 #else
-			auto end_time = std::chrono::high_resolution_clock::now();
-			float tmp_fps = 1.f / std::chrono::duration<float, std::chrono::seconds::period>(end_time - start_time).count();
-			if (tmp_fps < min_frame_rate) {
-				min_frame_rate = tmp_fps;
-				std::cout << "min fps" << min_frame_rate << std::endl;
+			
+			frame_cnt++;
+			if (frame_cnt == 100)
+			{
+				auto end_time = std::chrono::high_resolution_clock::now();
+				float tmp_fps = 100.f / std::chrono::duration<float, std::chrono::seconds::period>(end_time - start_time).count();
+				std::cout << "current fps" << tmp_fps << std::endl;
+				frame_cnt = 0;
+				start_time = std::chrono::high_resolution_clock::now();
 			}
-			std::cout << "current fps" << tmp_fps << std::endl;
+			
 #endif
 		}
 		vkDeviceWaitIdle(vk_contex_.logical_device);

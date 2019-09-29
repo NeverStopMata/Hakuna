@@ -7,6 +7,7 @@
 #include <array>
 #include "vertex.h"
 using namespace std;
+const int MAX_FRAMES_IN_FLIGHT = 2;
 const vector<const char*> validationLayers = {
 "VK_LAYER_LUNARG_standard_validation"
 };
@@ -47,7 +48,7 @@ public:
 		VkCommandPool transfer_command_pool;
 		VkCommandPool graphic_command_pool;
 		vector<VkCommandBuffer> commandBuffers;//with the size of swapChain image count.
-		VkSampleCountFlagBits msaasample_size = VK_SAMPLE_COUNT_1_BIT;
+		VkSampleCountFlagBits msaasample_size;
 
 		VkSwapchainKHR swapchain;
 		vector<VkImage> swapchain_images;
@@ -751,7 +752,7 @@ public:
 		VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes, is_sync);
 		VkExtent2D extent = ChooseSwapExtent(window, swapChainSupport.capabilities);
 
-		uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;//matatodo
+		uint32_t imageCount = MAX_FRAMES_IN_FLIGHT + 1;
 		if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
 			imageCount = swapChainSupport.capabilities.maxImageCount;
 		}
@@ -837,8 +838,8 @@ public:
 	static void CreateRenderPass(VulkanContex& vk_contex) {
 		VkAttachmentDescription colorAttachment = {};
 		colorAttachment.format = vk_contex.swapchain_image_format;
+		colorAttachment.samples = vk_contex.msaasample_size;
 		/*The loadOp and storeOp apply to color and depth data, and stencilLoadOp / stencilStoreOp apply to stencil data.*/
-		colorAttachment.samples = vk_contex.msaasample_size;//no multi-sample
 		/*The loadOp and storeOp determine what to do with the data in the attachment before rendering and after rendering*/
 		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;

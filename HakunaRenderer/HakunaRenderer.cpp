@@ -114,7 +114,7 @@ void HakunaRenderer::CreateGraphicPipeline() {
 	VkPipelineMultisampleStateCreateInfo multisampling = {};
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampling.sampleShadingEnable = VK_TRUE; // enable sample shading in the pipeline
-	multisampling.minSampleShading = .2f; // min fraction for sample shading; closer to one is smoother
+	multisampling.minSampleShading = .9f; // min fraction for sample shading; closer to one is smoother
 	multisampling.rasterizationSamples = vk_contex_.msaasample_size;
 	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
 	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -282,17 +282,17 @@ void HakunaRenderer::DrawFrame(){
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
 	//需要等待信号量的阶段和其等待的信号量是在两个数组里，一一对应
-	VkSemaphore waitSemaphores[] = { image_available_semaphores_[current_frame_] };
+	VkSemaphore image_acquired_semaphores[] = { image_available_semaphores_[current_frame_] };
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };//需要等待的阶段 颜色输出到attachment才需要等待imageAvailable,vert shader可以先开始
 	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = waitSemaphores;
+	submitInfo.pWaitSemaphores = image_acquired_semaphores;
 	submitInfo.pWaitDstStageMask = waitStages;
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &command_buffers_[imageIndex];
 	////The signalSemaphoreCount and pSignalSemaphores parameters specify which semaphores to signal once the command buffer(s) have finished execution.
-	VkSemaphore signalSemaphores[] = { render_finished_semaphores_[current_frame_] };
+	VkSemaphore render_finish_semaphores[] = { render_finished_semaphores_[current_frame_] };
 	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = signalSemaphores;
+	submitInfo.pSignalSemaphores = render_finish_semaphores;
 
 	// fence wont be reset automatically while semaphores can be reset as soon as it is caught.
 	vkResetFences(vk_contex_.logical_device, 1, &in_flight_fences_[current_frame_]);
@@ -304,7 +304,7 @@ void HakunaRenderer::DrawFrame(){
 	VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = signalSemaphores;
+	presentInfo.pWaitSemaphores = render_finish_semaphores;
 	VkSwapchainKHR swapChains[] = { vk_contex_.swapchain };
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = swapChains;
