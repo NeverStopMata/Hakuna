@@ -752,7 +752,7 @@ public:
 		VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes, is_sync);
 		VkExtent2D extent = ChooseSwapExtent(window, swapChainSupport.capabilities);
 
-		uint32_t imageCount = MAX_FRAMES_IN_FLIGHT + 1;
+		uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
 		if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
 			imageCount = swapChainSupport.capabilities.maxImageCount;
 		}
