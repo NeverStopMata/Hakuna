@@ -7,6 +7,7 @@
 #include <array>
 #include "vertex.h"
 using namespace std;
+const int MAX_FRAMES_IN_FLIGHT = 2;
 const vector<const char*> validationLayers = {
 "VK_LAYER_LUNARG_standard_validation"
 };
@@ -47,7 +48,7 @@ public:
 		VkCommandPool transfer_command_pool;
 		VkCommandPool graphic_command_pool;
 		vector<VkCommandBuffer> commandBuffers;//with the size of swapChain image count.
-		VkSampleCountFlagBits msaasample_size = VK_SAMPLE_COUNT_1_BIT;
+		VkSampleCountFlagBits msaasample_size;
 
 		VkSwapchainKHR swapchain;
 		vector<VkImage> swapchain_images;
@@ -187,7 +188,7 @@ public:
 	//	vkDestroyShaderModule(vk_contex.logical_device, vertShaderModule, nullptr);
 	//	return shaderStage;
 	//}
-	static void TransitionImageLayout(const VulkanContex& vk_contex, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) {
+	static void TransitionImageLayout(const VulkanContex& vk_contex, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels, uint32_t layer_cnt = 1) {
 		VkCommandBuffer commandBuffer = BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily));
 
 		VkImageMemoryBarrier barrier = {};
@@ -210,7 +211,7 @@ public:
 		barrier.subresourceRange.baseMipLevel = 0;
 		barrier.subresourceRange.levelCount = mipLevels;
 		barrier.subresourceRange.baseArrayLayer = 0;
-		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.layerCount = layer_cnt;
 		VkPipelineStageFlags sourceStage;
 		VkPipelineStageFlags destinationStage;
 
@@ -246,7 +247,8 @@ public:
 		}
 		vkCmdPipelineBarrier(
 			commandBuffer,
-			sourceStage, destinationStage,
+			sourceStage, 
+			destinationStage,
 			0,
 			0, nullptr,
 			0, nullptr,
@@ -265,7 +267,7 @@ public:
 		viewInfo.subresourceRange.baseMipLevel = 0;
 		viewInfo.subresourceRange.levelCount = mipLevels;
 		viewInfo.subresourceRange.baseArrayLayer = 0;
-		viewInfo.subresourceRange.layerCount = 1;
+		viewInfo.subresourceRange.layerCount = view_image_type == VkImageViewType::VK_IMAGE_VIEW_TYPE_CUBE ? 6 : 1;
 
 		VkImageView imageView;
 		if (vkCreateImageView(vk_contex.logical_device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
@@ -705,14 +707,17 @@ public:
 		return availableFormats[0];
 	}
 
-	static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
+	static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes,bool is_vsync) {
 		VkPresentModeKHR bestMode = VK_PRESENT_MODE_FIFO_KHR;
-		for (const auto& availablePresentMode : availablePresentModes) {
-			if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-				return availablePresentMode;
-			}
-			else if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
-				bestMode = availablePresentMode;
+		if (!is_vsync)
+		{
+			for (const auto& availablePresentMode : availablePresentModes) {
+				if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+					return availablePresentMode;
+				}
+				else if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+					bestMode = availablePresentMode;
+				}
 			}
 		}
 		return bestMode;
@@ -741,10 +746,10 @@ public:
 		}
 	}
 
-	static void CreateSwapChain(VulkanContex& vk_contex, GLFWwindow* window) {
+	static void CreateSwapChain(VulkanContex& vk_contex, GLFWwindow* window, bool is_sync) {
 		VulkanUtility::SwapChainSupportDetails swapChainSupport = VulkanUtility::QuerySwapChainSupport(vk_contex.physical_device, vk_contex.surface);
 		VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
-		VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
+		VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes, is_sync);
 		VkExtent2D extent = ChooseSwapExtent(window, swapChainSupport.capabilities);
 
 		uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
@@ -833,8 +838,8 @@ public:
 	static void CreateRenderPass(VulkanContex& vk_contex) {
 		VkAttachmentDescription colorAttachment = {};
 		colorAttachment.format = vk_contex.swapchain_image_format;
+		colorAttachment.samples = vk_contex.msaasample_size;
 		/*The loadOp and storeOp apply to color and depth data, and stencilLoadOp / stencilStoreOp apply to stencil data.*/
-		colorAttachment.samples = vk_contex.msaasample_size;//no multi-sample
 		/*The loadOp and storeOp determine what to do with the data in the attachment before rendering and after rendering*/
 		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
