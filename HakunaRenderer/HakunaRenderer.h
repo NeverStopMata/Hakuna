@@ -20,6 +20,7 @@
 #include "texture_mgr.h"
 #include "directional_light.h"
 #include "mesh_mgr.h"
+#include "math.h"
 using namespace std;
 
 
@@ -93,7 +94,16 @@ private:
 
 
 
-	vector<string> material_tex_names_ = { "basecolor", "normal", "metallic", "roughness", "occlusion", "diffuse_convolution"};
+	vector<string> material_tex_names_ = { 
+		"basecolor", 
+		"normal", 
+		"metallic", 
+		"roughness", 
+		"occlusion", 
+		"env_irradiance_cubemap",
+		"env_specular_cubemap",
+		"env_brdf_lut" };
+
 	vector<VkDescriptorSet> opaque_descriptor_sets_;
 	vector<VkDescriptorSet> skybox_descriptor_sets_;
 	struct {
@@ -117,7 +127,7 @@ public:
 
 		InitWindow();
 		InitVulkan();
-		Camera temp_cam(90.f, vk_contex_.swapchain_extent.width / (float)vk_contex_.swapchain_extent.height, 100.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
+		Camera temp_cam(90.f, vk_contex_.swapchain_extent.width / (float)vk_contex_.swapchain_extent.height, 100.f, 0.01f, vec3(0, 0.15, 0.8), vec3(0, 0, 0));
 		cam_ = temp_cam;
 	}
 	~HakunaRenderer() {
@@ -168,6 +178,12 @@ private:
 	void CreateGraphicPipeline();
 	void CreateOpaqueDescriptorSets();
 	void CreateSkyboxDescriptorSets();
+	enum EnvCubemapType {
+		ECT_SPECULAR,
+		ECT_DIFFUSE,
+	};
+	std::shared_ptr<TextureMgr::Texture> GeneratePrefilterEnvCubemap(EnvCubemapType env_cubemap_type);
+	std::shared_ptr<TextureMgr::Texture> GenerateBRDFLUT();
 	//void CreateIrradianceMap();
 
 

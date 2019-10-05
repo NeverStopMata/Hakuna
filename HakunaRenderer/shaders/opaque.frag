@@ -1,6 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
-
+#extension GL_GOOGLE_include_directive :enable
 layout(location = 0) in vec3 fragWorldPos;
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 2) in vec3 fragNormal;
@@ -17,57 +17,44 @@ layout(binding = 4) uniform sampler2D normalSampler;
 layout(binding = 5) uniform sampler2D metallicSampler;
 layout(binding = 6) uniform sampler2D roughnessSampler;
 layout(binding = 7) uniform sampler2D occlusionSampler;
-layout(binding = 8) uniform sampler2D irradianceMapSampler;
+layout(binding = 8) uniform samplerCube envSpecularSampler;
+layout(binding = 9) uniform samplerCube envDiffuseSampler;
+layout(binding = 10) uniform sampler2D envBRDFLutSampler;
+
 
 layout(location = 0) out vec4 outColor;
 
 
-#define PI     3.1415926535897932384626433832795
-#define INV_PI 0.31830988618
 
-// Normal Distribution function --------------------------------------
-float D_GGX(float dotNH, float roughness)
+#include "common.inc"
+#include "brdf.inc"
+
+
+vec3 prefilteredReflection(vec3 R, float roughness)
 {
-	float alpha = max(roughness * roughness, 0.002);
-	float alpha2 = alpha * alpha;
-	float denom = dotNH * (dotNH * alpha2 - dotNH) + 1.0;
-	return (alpha2)/(PI * denom*denom); 
+	const float MAX_REFLECTION_LOD = 9.0; // todo: param/const
+	float lod = roughness * (MAX_REFLECTION_LOD-1);
+	// float lodf = floor(lod);
+	// float lodc = ceil(lod);
+	// vec3 a = textureLod(prefilteredMap, R, lodf).rgb;
+	// vec3 b = textureLod(prefilteredMap, R, lodc).rgb;
+	//return mix(a, b, lod - lodf);
+	return textureLod(envSpecularSampler, R * vec3(1,-1,1), lod).rgb;
 }
 
-// Geometric Shadowing function --------------------------------------
-float Vis_SmithJoint(float dotNL, float dotNV, float roughness )
-{
 
-    // Approximation of the above formulation (simplify the sqrt, not mathematically correct but close enough)
-    float a = max(roughness * roughness, 0.002);
-    float lambdaV = dotNL * (dotNV * (1 - a) + a);
-    float lambdaL = dotNV * (dotNL * (1 - a) + a);
-    return 0.5f / (lambdaV + lambdaL + 1e-5f);
-}
-
-// Fresnel function ----------------------------------------------------
-vec3 F_Schlick(float dotVH, vec3 F0)
+vec3 GetEnvLighting(vec3 N, vec3 V, vec3 R,vec3 F0, float AO,float metallic, float roughness, vec3 albedo)
 {
-	float Fc = pow( 1 - dotVH, 5.0 );		
-	
-	return F0 * (1 - Fc) + clamp(50.0 * F0.g, 0.0, 1.0) * Fc;
-}
-vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness)
-{
-	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
-}
-
-vec3 GetEnvDiffuse(vec3 N, vec3 F0, float metallic, vec3 albedo)
-{
-	float theta = acos(N.y);
-	float phi = atan(N.z / N.x);
-	float u1 = (phi * 0.5 + PI * 0.25) / PI;
-	float u2 = (phi * 0.5 + PI * 0.25) / PI + 0.5;
-	float u = mix(u1,u2,step(N.x,0));
-	float v = theta / PI;
-	vec3 irradiance = pow(texture(irradianceMapSampler,vec2(u,v)).rgb,vec3(2.2));
-	vec3 kD = (vec3(1) - F0) * (1 - metallic);
-	return albedo * irradiance * kD * INV_PI;
+	vec3 irradiance = texture(envDiffuseSampler, N).rgb;
+	vec3 diffuse = irradiance * albedo;	
+	vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
+	vec3 reflection = prefilteredReflection(R, roughness).rgb;
+	vec2 brdf = texture(envBRDFLutSampler, vec2(max(dot(N, V), 0.0), roughness)).rg;
+	vec3 specular = reflection * (F * brdf.x + brdf.y);
+	vec3 kD = 1.0 - F;
+	kD *= 1.0 - metallic;	  
+	vec3 ambient = (kD * diffuse + specular) * AO;//matatodo : use disney diffuse term instead.
+	return ambient;
 }
 vec3 GetNormal()
 {
@@ -100,7 +87,6 @@ vec3 GetDirectLightContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic,
 		vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);			
 		color += (kD * albedo / PI + spec) * dotNL;
 	}
-
 	return color;
 }
 
@@ -118,7 +104,7 @@ void main()
 	vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
 	vec3 color = GetDirectLightContribution(L, V, N, F0, metallic, roughness, albedo);
-	color += GetEnvDiffuse(N, F0, metallic, albedo) * occlusion;
+	color += GetEnvLighting(N, V, R,F0, occlusion,metallic, roughness, albedo);
 	// Tone mapping
 	//color = Uncharted2Tonemap(color * uboParams.exposure);
 	//color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));	

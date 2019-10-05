@@ -45,6 +45,9 @@
     <ClCompile Include="vertex.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="RenderPipeline.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="HakunaRenderer.h">
@@ -92,6 +95,30 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\skybox.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\filtercube.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\prefilter_diffuse_envmap.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\prefilter_specular_envmap.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\compile.bat">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\gen_brdf_lut.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\gen_brdf_lut.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\brdf.inc">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\common.inc">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

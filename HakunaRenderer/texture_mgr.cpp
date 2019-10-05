@@ -12,12 +12,14 @@ TextureMgr::~TextureMgr()
 {
 }
 
-void TextureMgr::CreateTexture2D(const VulkanUtility::VulkanContex& vk_contex, VkFormat format, string file_path, string tex_name) {
-	tex_dict_[tex_name] = make_shared<Texture>();
+std::shared_ptr<TextureMgr::Texture> TextureMgr::LoadTexture2D(const VulkanUtility::VulkanContex& vk_contex, VkFormat format, string file_path) {
+	auto texture_ptr = make_shared<Texture>();
 	int texWidth, texHeight, texChannels;
+
+
 	stbi_uc* pixels = stbi_load(file_path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 	uint32_t miplevel_size = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-	tex_dict_[tex_name]->miplevel_size = miplevel_size;
+	texture_ptr->miplevel_size = miplevel_size;
 	VkDeviceSize imageSize = texWidth * texHeight * 4;
 
 	if (pixels == NULL) {
@@ -44,6 +46,7 @@ void TextureMgr::CreateTexture2D(const VulkanUtility::VulkanContex& vk_contex, V
 		texWidth,
 		texHeight,
 		miplevel_size,
+		false,
 		VK_SAMPLE_COUNT_1_BIT,
 		format,
 		VK_IMAGE_TILING_OPTIMAL,
@@ -51,25 +54,26 @@ void TextureMgr::CreateTexture2D(const VulkanUtility::VulkanContex& vk_contex, V
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT |
 		VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		tex_dict_[tex_name]->texture_image,
-		tex_dict_[tex_name]->texture_image_memory);
-	VulkanUtility::TransitionImageLayout(vk_contex, tex_dict_[tex_name]->texture_image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, miplevel_size);
-	VulkanUtility::CopyBufferToImage(vk_contex,staging_buffer, tex_dict_[tex_name]->texture_image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-	VulkanUtility::GenerateMipmaps(vk_contex, tex_dict_[tex_name]->texture_image, format, texWidth, texHeight, miplevel_size);
+		texture_ptr->texture_image,
+		texture_ptr->texture_image_memory);
+	VulkanUtility::TransitionImageLayout(vk_contex, texture_ptr->texture_image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, miplevel_size);
+	VulkanUtility::CopyBufferToImage(vk_contex,staging_buffer, texture_ptr->texture_image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+	VulkanUtility::GenerateMipmaps(vk_contex, texture_ptr->texture_image, format, texWidth, texHeight, miplevel_size);
 	vkDestroyBuffer(vk_contex.logical_device, staging_buffer, nullptr);
 	vkFreeMemory(vk_contex.logical_device, staging_buffer_memory, nullptr);
-	tex_dict_[tex_name]->texture_image_view = VulkanUtility::CreateImageView(vk_contex, tex_dict_[tex_name]->texture_image, format, VK_IMAGE_ASPECT_COLOR_BIT, miplevel_size, VkImageViewType::VK_IMAGE_VIEW_TYPE_2D);
-	CreateTextureSampler(vk_contex, *tex_dict_[tex_name]);
+	VulkanUtility::CreateImageView(vk_contex, texture_ptr->texture_image, format, VK_IMAGE_ASPECT_COLOR_BIT, miplevel_size, VkImageViewType::VK_IMAGE_VIEW_TYPE_2D, &texture_ptr->texture_image_view);
+	CreateTextureSampler(vk_contex, *texture_ptr);
+	return texture_ptr;
 }
 
-void TextureMgr::CreateTextureCube(const VulkanUtility::VulkanContex& vk_contex, VkFormat format, string file_path, string tex_name) {
+std::shared_ptr<TextureMgr::Texture> TextureMgr::LoadTextureCube(const VulkanUtility::VulkanContex& vk_contex, VkFormat format, string file_path) {
 	gli::texture_cube tex_cube(gli::load(file_path));
 	assert(!tex_cube.empty());
 	auto image_size = tex_cube.size();
-	tex_dict_[tex_name] = make_shared<Texture>();
-	tex_dict_[tex_name]->width = static_cast<uint32_t>(tex_cube.extent().x);
-	tex_dict_[tex_name]->height = static_cast<uint32_t>(tex_cube.extent().y);
-	tex_dict_[tex_name]->miplevel_size = static_cast<uint32_t>(tex_cube.levels());
+	auto texture_cubemap = make_shared<Texture>();
+	texture_cubemap->width = static_cast<uint32_t>(tex_cube.extent().x);
+	texture_cubemap->height = static_cast<uint32_t>(tex_cube.extent().y);
+	texture_cubemap->miplevel_size = static_cast<uint32_t>(tex_cube.levels());
 
 	// Create a host-visible staging buffer that contains the raw image data
 	VkBuffer staging_buffer;
@@ -94,7 +98,7 @@ void TextureMgr::CreateTextureCube(const VulkanUtility::VulkanContex& vk_contex,
 	size_t offset = 0;
 	for (uint32_t face = 0; face < 6; face++)
 	{
-		for (uint32_t level = 0; level < tex_dict_[tex_name]->miplevel_size; level++)
+		for (uint32_t level = 0; level < texture_cubemap->miplevel_size; level++)
 		{
 			VkBufferImageCopy bufferCopyRegion = {};
 			bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -118,11 +122,11 @@ void TextureMgr::CreateTextureCube(const VulkanUtility::VulkanContex& vk_contex,
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
 	image_create_info.format = format;
-	image_create_info.mipLevels = tex_dict_[tex_name]->miplevel_size;
+	image_create_info.mipLevels = texture_cubemap->miplevel_size;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 	image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	image_create_info.extent = { tex_dict_[tex_name]->width, tex_dict_[tex_name]->height, 1 };
+	image_create_info.extent = { texture_cubemap->width, texture_cubemap->height, 1 };
 	image_create_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 	image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	// Ensure that the TRANSFER_DST bit is set for staging
@@ -136,37 +140,37 @@ void TextureMgr::CreateTextureCube(const VulkanUtility::VulkanContex& vk_contex,
 	image_create_info.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
 
-	if (vkCreateImage(vk_contex.logical_device, &image_create_info, nullptr, &tex_dict_[tex_name]->texture_image) != VK_SUCCESS) {
+	if (vkCreateImage(vk_contex.logical_device, &image_create_info, nullptr, &texture_cubemap->texture_image) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create image!");
 	}
 	
 	VkMemoryAllocateInfo mem_alloc_info{};
 	mem_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	VkMemoryRequirements mem_reqs;
-	vkGetImageMemoryRequirements(vk_contex.logical_device, tex_dict_[tex_name]->texture_image, &mem_reqs);
+	vkGetImageMemoryRequirements(vk_contex.logical_device, texture_cubemap->texture_image, &mem_reqs);
 
 	mem_alloc_info.allocationSize = mem_reqs.size;
 	mem_alloc_info.memoryTypeIndex = VulkanUtility::FindMemoryType(vk_contex.physical_device, mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	if (vkAllocateMemory(vk_contex.logical_device, &mem_alloc_info, nullptr, &tex_dict_[tex_name]->texture_image_memory) != VK_SUCCESS) {
+	if (vkAllocateMemory(vk_contex.logical_device, &mem_alloc_info, nullptr, &texture_cubemap->texture_image_memory) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate image memory!");
 	}
-	vkBindImageMemory(vk_contex.logical_device, tex_dict_[tex_name]->texture_image, tex_dict_[tex_name]->texture_image_memory, 0);
+	vkBindImageMemory(vk_contex.logical_device, texture_cubemap->texture_image, texture_cubemap->texture_image_memory, 0);
 
 	VulkanUtility::TransitionImageLayout(
 		vk_contex, 
-		tex_dict_[tex_name]->texture_image, 
+		texture_cubemap->texture_image, 
 		format, 
 		VK_IMAGE_LAYOUT_UNDEFINED, 
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
-		tex_dict_[tex_name]->miplevel_size, 
+		texture_cubemap->miplevel_size, 
 		static_cast<uint32_t>(6)
 	);
 	VkCommandBuffer commandBuffer = VulkanUtility::BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily));
 	vkCmdCopyBufferToImage(
 		commandBuffer,
 		staging_buffer,
-		tex_dict_[tex_name]->texture_image,
+		texture_cubemap->texture_image,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		static_cast<uint32_t>(bufferCopyRegions.size()),
 		bufferCopyRegions.data());
@@ -174,18 +178,25 @@ void TextureMgr::CreateTextureCube(const VulkanUtility::VulkanContex& vk_contex,
 	
 	VulkanUtility::TransitionImageLayout(
 		vk_contex,
-		tex_dict_[tex_name]->texture_image,
+		texture_cubemap->texture_image,
 		format,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		tex_dict_[tex_name]->miplevel_size,
+		texture_cubemap->miplevel_size,
 		static_cast<uint32_t>(6)
 	);
 	vkDestroyBuffer(vk_contex.logical_device, staging_buffer, nullptr);
 	vkFreeMemory(vk_contex.logical_device, staging_buffer_memory, nullptr);
-	tex_dict_[tex_name]->texture_image_view = VulkanUtility::CreateImageView(vk_contex, tex_dict_[tex_name]->texture_image, format, VK_IMAGE_ASPECT_COLOR_BIT, tex_dict_[tex_name]->miplevel_size, VkImageViewType::VK_IMAGE_VIEW_TYPE_CUBE);
-	CreateTextureSampler(vk_contex, *tex_dict_[tex_name]);
+	VulkanUtility::CreateImageView(vk_contex, texture_cubemap->texture_image, format, VK_IMAGE_ASPECT_COLOR_BIT, texture_cubemap->miplevel_size, VkImageViewType::VK_IMAGE_VIEW_TYPE_CUBE,&texture_cubemap->texture_image_view);
+	CreateTextureSampler(vk_contex, *texture_cubemap);
+	return texture_cubemap;
 }
+
+void TextureMgr::AddTexture(string tex_name, shared_ptr<Texture> tex_ptr)
+{
+	tex_dict_[tex_name] = tex_ptr;
+}
+
 void TextureMgr::CreateTextureSampler(const VulkanUtility::VulkanContex& vk_contex, Texture& tex) {
 	VkSamplerCreateInfo samplerInfo = {};
 	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -193,8 +204,8 @@ void TextureMgr::CreateTextureSampler(const VulkanUtility::VulkanContex& vk_cont
 	samplerInfo.minFilter = VK_FILTER_LINEAR;
 	samplerInfo.mipLodBias = 0.0f;
 	samplerInfo.mipmapMode = VkSamplerMipmapMode::VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	VkPhysicalDeviceFeatures supportedFeatures;
 	vkGetPhysicalDeviceFeatures(vk_contex.physical_device, &supportedFeatures);

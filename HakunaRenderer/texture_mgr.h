@@ -21,8 +21,9 @@ public:
 	};
 	std::map<string, shared_ptr<Texture>> tex_dict_;
 	TextureMgr();
-	void CreateTexture2D(const VulkanUtility::VulkanContex& vk_contex, VkFormat format, string file_path, string tex_name);
-	void CreateTextureCube(const VulkanUtility::VulkanContex& vk_contex, VkFormat format, string file_path, string tex_name);
+	std::shared_ptr<TextureMgr::Texture> LoadTexture2D(const VulkanUtility::VulkanContex& vk_contex, VkFormat format, string file_path);
+	std::shared_ptr<TextureMgr::Texture> LoadTextureCube(const VulkanUtility::VulkanContex& vk_contex, VkFormat format, string file_path);
+	void AddTexture(string tex_name, shared_ptr<Texture> tex_ptr);
 	shared_ptr<Texture> GetTextureByName(string tex_name);
 	void CleanUpTextures(const VulkanUtility::VulkanContex& vk_contex);
 	~TextureMgr();

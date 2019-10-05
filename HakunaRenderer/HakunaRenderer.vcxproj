@@ -23,7 +23,7 @@
     <ProjectGuid>{63490632-3BC4-4C48-876A-1683813E46B0}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>HakunaRenderer</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -109,13 +109,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\Vulkan\1.1.106.0\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>D:\SDK\glfw-3.3.bin.WIN64\lib-vc2017;D:\SDK\Vulkan\1.1.106.0\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\SDK\glfw-3.3.bin.WIN64\lib-vc2017;D:\SDK\VulkanSDK\1.1.121.2\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -151,7 +152,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\Vulkan\1.1.106.0\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -159,7 +161,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>D:\SDK\glfw-3.3.bin.WIN64\lib-vc2017;D:\SDK\Vulkan\1.1.106.0\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\SDK\glfw-3.3.bin.WIN64\lib-vc2017;D:\SDK\VulkanSDK\1.1.121.2\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -189,8 +191,16 @@
     <ClInclude Include="mesh_mgr.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\brdf.inc" />
+    <None Include="shaders\common.inc" />
+    <None Include="shaders\compile.bat" />
+    <None Include="shaders\filtercube.vert" />
+    <None Include="shaders\gen_brdf_lut.frag" />
+    <None Include="shaders\gen_brdf_lut.vert" />
     <None Include="shaders\opaque.frag" />
     <None Include="shaders\opaque.vert" />
+    <None Include="shaders\prefilter_diffuse_envmap.frag" />
+    <None Include="shaders\prefilter_specular_envmap.frag" />
     <None Include="shaders\skybox.frag" />
     <None Include="shaders\skybox.vert" />
   </ItemGroup>
