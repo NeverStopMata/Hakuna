@@ -45,6 +45,7 @@ struct UboDirectionalLights {
 
 struct UboParams {
 	alignas(16) glm::vec3 cam_world_pos;
+	alignas(4) float max_reflection_lod;
 };
 
 
@@ -127,7 +128,7 @@ public:
 
 		InitWindow();
 		InitVulkan();
-		Camera temp_cam(90.f, vk_contex_.swapchain_extent.width / (float)vk_contex_.swapchain_extent.height, 100.f, 0.01f, vec3(0, 0.15, 0.8), vec3(0, 0, 0));
+		Camera temp_cam(90.f, vk_contex_.swapchain_extent.width / (float)vk_contex_.swapchain_extent.height, 100.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
 		cam_ = temp_cam;
 	}
 	~HakunaRenderer() {

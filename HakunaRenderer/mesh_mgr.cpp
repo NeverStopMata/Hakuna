@@ -8,7 +8,7 @@ void MeshMgr::Init(VulkanUtility::VulkanContex* vk_context) {
 	vk_context_ptr_ = vk_context;
 }
 
-void MeshMgr::LoadModelFromFile(std::string model_path,std::string name) {
+void MeshMgr::LoadModelFromFile(std::string model_path,std::string name, glm::vec3 scale) {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
@@ -25,9 +25,9 @@ void MeshMgr::LoadModelFromFile(std::string model_path,std::string name) {
 			std::array<Vertex, 3> tmp_vertices;
 			for (int j = i; j < i + 3; j++) {
 				tmp_vertices[j - i].pos = {
-					attrib.vertices[3 * shape.mesh.indices[j].vertex_index + 0],
-					attrib.vertices[3 * shape.mesh.indices[j].vertex_index + 1],
-					attrib.vertices[3 * shape.mesh.indices[j].vertex_index + 2]
+					attrib.vertices[3 * shape.mesh.indices[j].vertex_index + 0] * scale.x,
+					attrib.vertices[3 * shape.mesh.indices[j].vertex_index + 1] * scale.y,
+					attrib.vertices[3 * shape.mesh.indices[j].vertex_index + 2] * scale.z
 				};
 				tmp_vertices[j - i].normal = {
 					attrib.normals[3 * shape.mesh.indices[j].normal_index + 0],

@@ -24,7 +24,7 @@ public:
 	void Init(VulkanUtility::VulkanContex* vk_context);
 	~MeshMgr();
 	void CalculateTangents(std::array<Vertex, 3>& vertices);
-	void LoadModelFromFile(std::string model_path, std::string name);
+	void LoadModelFromFile(std::string model_path, std::string name, glm::vec3 scale = glm::vec3(1,1,1));
 	void CleanUpMeshDict();
 	void CreateVertexBuffer(Mesh& mesh);
 	void CreateIndexBuffer(Mesh& mesh);

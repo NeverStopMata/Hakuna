@@ -25,12 +25,10 @@ void HakunaRenderer::InitVulkan()
 	CreateUniformBuffers();
 
 	mesh_mgr_.Init(&vk_contex_);
-	mesh_mgr_.LoadModelFromFile("models/gun.obj", "gun");
-	mesh_mgr_.LoadModelFromFile("models/sky.obj", "sky");
+	mesh_mgr_.LoadModelFromFile("models/gun.obj", "gun");// temp debug
+	mesh_mgr_.LoadModelFromFile("models/sky.obj", "sky",glm::vec3(10,10,10));
 
 	texture_mgr_.AddTexture("sky_texcube", texture_mgr_.LoadTextureCube(this->vk_contex_, VK_FORMAT_R16G16B16A16_SFLOAT, "./textures/skybox_tex/hdr/gcanyon_cube.ktx"));
-	//texture_mgr_.AddTexture("sky_tex2d", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM,"textures/skybox_tex/sky.png"));
-	//texture_mgr_.AddTexture("diffuse_convolution", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/skybox_tex/diffuse_convolution.png"));
 	texture_mgr_.AddTexture("basecolor", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_basecolor.png"));
 	texture_mgr_.AddTexture("metallic",texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_metallic.png"));
 	texture_mgr_.AddTexture("normal", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_normal.png"));
@@ -445,6 +443,7 @@ void HakunaRenderer::UpdateUniformBuffer(uint32_t currentImage) {
 
 	UboParams ubo_params = {};
 	ubo_params.cam_world_pos = cam_.GetWorldPos();
+	ubo_params.max_reflection_lod = static_cast<float>(texture_mgr_.tex_dict_["env_specular_cubemap"]->miplevel_size);
 	vkMapMemory(vk_contex_.logical_device, params_ubos_[currentImage].params_buffer_memory, 0, sizeof(ubo_params), 0, &data);
 	memcpy(data, &ubo_params, sizeof(ubo_params));
 	vkUnmapMemory(vk_contex_.logical_device, params_ubos_[currentImage].params_buffer_memory);
@@ -637,7 +636,7 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 	auto tStart = std::chrono::high_resolution_clock::now();
 	const VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	/* if the job takes a lot of time, CPU won't wait for queue's job to be done and the main thread will go die.*/
-	const int32_t dim = (env_cubemap_type == EnvCubemapType::ECT_SPECULAR) ? 512 : 128;
+	const int32_t dim = (env_cubemap_type == EnvCubemapType::ECT_SPECULAR) ? 1024 : 128;
 	const uint32_t numMips = static_cast<uint32_t>(floor(std::log2(dim)));
 	auto prefilterCube = make_shared<TextureMgr::Texture>();
 	prefilterCube->miplevel_size = numMips;
