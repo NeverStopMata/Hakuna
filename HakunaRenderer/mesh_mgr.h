@@ -10,6 +10,7 @@
 #include "vulkan_utility.h"
 #include "mesh.h"
 #include "vertex.h"
+#include <iostream>
 using namespace std;
 
 class MeshMgr
@@ -24,6 +25,7 @@ public:
 	void Init(VulkanUtility::VulkanContex* vk_context);
 	~MeshMgr();
 	void CalculateTangents(std::array<Vertex, 3>& vertices);
+	void CreateCubeMesh(std::string name, glm::vec3 scale);
 	void LoadModelFromFile(std::string model_path, std::string name, glm::vec3 scale = glm::vec3(1,1,1));
 	void CleanUpMeshDict();
 	void CreateVertexBuffer(Mesh& mesh);

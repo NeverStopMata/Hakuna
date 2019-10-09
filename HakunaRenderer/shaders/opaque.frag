@@ -34,36 +34,18 @@ layout(location = 0) out vec4 outColor;
 #include "brdf.inc"
 
 
-vec3 prefilteredReflection(vec3 N, vec3 R, float roughness,vec3 dRdx, vec3 dRdy)
+vec3 prefilteredReflection(vec3 N, vec3 R, float roughness)
 {
-
-	float lod = roughness * (ubo_params.max_reflection_lod-1);
-	float scale = pow(2.0,lod);
-	vec3 biasedDRdx = dRdx * scale;
-	vec3 biasedDRDy = dRdy * scale;
-	float NoR = dot(N,R);
-	if(NoR <= 0.95)//not very close
-	{
-		vec3 BiTangent = normalize(N * (1.0 / NoR) - R);
-		vec3 Tangent = cross(BiTangent,R);
-		float horizonScale = 0.7 * (NoR - 1) + 1;
-		float verticleScale = -0.5 * (NoR - 1) + 1;
-		biasedDRdx = AffineTransformation(biasedDRdx,Tangent,horizonScale);
-		biasedDRdx = AffineTransformation(biasedDRdx,BiTangent,verticleScale);
-		biasedDRDy = AffineTransformation(biasedDRDy,Tangent,horizonScale);
-		biasedDRDy = AffineTransformation(biasedDRDy,BiTangent,verticleScale);
-	}
-
-	return textureGrad(envSpecularSampler,R * vec3(1,-1,1),biasedDRdx * vec3(1,-1,1),biasedDRDy * vec3(1,-1,1)).rgb;
-	//return textureLod(envSpecularSampler, R * vec3(1,-1,1), lod).rgb;
+	float lod = roughness * (ubo_params.max_reflection_lod-1);	
+	return textureLod(envSpecularSampler, R * vec3(1,-1,1), lod).rgb;
 }
 
 
-vec3 GetEnvLighting(vec3 N, vec3 V, vec3 R,vec3 F0, float AO,float metallic, float roughness, vec3 albedo,vec3 dRdx, vec3 dRdy)
+vec3 GetEnvLighting(vec3 N, vec3 V, vec3 R,vec3 F0, float AO,float metallic, float roughness, vec3 albedo)
 {
 	
 	vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
-	vec3 reflection = prefilteredReflection(N, R, roughness,dRdx,dRdy).rgb;
+	vec3 reflection = prefilteredReflection(N, R, roughness).rgb;
 	vec2 brdf = texture(envBRDFLutSampler, vec2(max(dot(N, V), 0.0), 1-roughness)).rg;
 	vec3 specular = reflection * (F * brdf.x + brdf.y);
 	vec3 kD = 1.0 - F;
@@ -147,18 +129,17 @@ void main()
 	// float metallicFlag = step(0.5,metallic);
 	// roughness = mix(roughness,0.0,metallicFlag);
 	// albedo =  mix(albedo,vec3(0.7,0.7,0.7),metallicFlag);
+
+	// roughness = 0.125;
+	// metallic = 1;
+	// albedo = vec3(0.7,0.7,0.7);
 	//end:use to debug
 
 	float occlusion = texture(occlusionSampler,fragTexCoord).r;
 	
 	vec3 F0 = mix(vec3(0.04), albedo, metallic);
-
-	vec3 dVdx = dFdx(fragWorldViewDirection);
-	vec3 dVdy = dFdy(fragWorldViewDirection);
-	vec3 dRdx = 2 * dot(dVdx,N) * N - dVdx;
-	vec3 dRdy = 2 * dot(dVdy,N) * N - dVdy;
 	vec3 color = GetDirectLightContribution(L, V, N, F0, metallic, roughness, albedo);
-	color += GetEnvLighting(N, V, R,F0, occlusion,metallic, roughness, albedo, dRdx, dRdy);
+	color += GetEnvLighting(N, V, R,F0, occlusion,metallic, roughness, albedo);
 	// Tone mapping
 
 	// color = Uncharted2Tonemap(color * 4.5);

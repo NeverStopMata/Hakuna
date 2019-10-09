@@ -26,6 +26,8 @@ void HakunaRenderer::InitVulkan()
 
 	mesh_mgr_.Init(&vk_contex_);
 	mesh_mgr_.LoadModelFromFile("models/gun.obj", "gun");// temp debug
+
+	//mesh_mgr_.CreateCubeMesh("gun", glm::vec3(10, 0.01, 10));
 	mesh_mgr_.LoadModelFromFile("models/sky.obj", "sky",glm::vec3(10,10,10));
 
 	texture_mgr_.AddTexture("sky_texcube", texture_mgr_.LoadTextureCube(this->vk_contex_, VK_FORMAT_R16G16B16A16_SFLOAT, "./textures/skybox_tex/hdr/gcanyon_cube.ktx"));
@@ -55,6 +57,10 @@ void HakunaRenderer::InitWindow()
 	glfwSetWindowUserPointer(window_, this);
 	glfwSetFramebufferSizeCallback(window_, framebufferResizeCallback);
 }
+
+
+
+
 
 void HakunaRenderer::SetupDebugMessenger() {
 	if (!enableValidationLayers) return;
@@ -479,6 +485,8 @@ void HakunaRenderer::Cleanup()
 	}
 	vkDestroySurfaceKHR(vk_contex_.vk_instance, vk_contex_.surface, nullptr);//Make sure that the surface is destroyed before the instance.
 	vkDestroyInstance(vk_contex_.vk_instance, nullptr);
+
+	cam_.ReleaseCameraContrl(input_mgr_);
 	glfwDestroyWindow(window_);
 	glfwTerminate();
 }

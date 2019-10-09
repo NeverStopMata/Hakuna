@@ -61,6 +61,52 @@ void MeshMgr::LoadModelFromFile(std::string model_path,std::string name, glm::ve
 	mesh_dict_[name] = new_mesh_ptr_;
 }
 
+void MeshMgr::CreateCubeMesh(std::string name, glm::vec3 scale) {
+	auto new_mesh_ptr_ = std::make_shared<Mesh>();
+	new_mesh_ptr_->vertices_.resize(24);
+	for (int faceIdx = 0; faceIdx < 6; faceIdx++)
+	{
+		glm::vec3 faceNormal = glm::vec3(((faceIdx % 2) * 2 - 1) * (faceIdx / 2 == 0), ((faceIdx % 2) * 2 - 1)*(-1) * (faceIdx / 2 == 1), ((faceIdx % 2) * 2 - 1) * (faceIdx / 2 == 2));
+		for (int i = 0; i < 4; i++)
+		{
+			new_mesh_ptr_->vertices_[faceIdx * 4 + i].pos = faceNormal
+			+glm::vec3(0, (i % 2) * 2 - 1, (i / 2) * 2 - 1) * abs(faceNormal.x)
+			+glm::vec3((i % 2) * 2 - 1, 0, (i / 2) * 2 - 1) * abs(faceNormal.y)
+			+glm::vec3((i % 2) * 2 - 1, (i / 2) * 2 - 1, 0) * abs(faceNormal.z);
+			new_mesh_ptr_->vertices_[faceIdx * 4 + i].normal = faceNormal;
+			new_mesh_ptr_->vertices_[faceIdx * 4 + i].pos *= scale;
+		}
+	}
+	new_mesh_ptr_->indices_.resize(36);
+	int idxCnt = 0;
+	for (int faceIdx = 0; faceIdx < 6; faceIdx++)
+	{	
+		if (faceIdx % 2 == 0)
+		{
+			new_mesh_ptr_->indices_[idxCnt++] = 2 + faceIdx * 4;
+			new_mesh_ptr_->indices_[idxCnt++] = 1 + faceIdx * 4;
+			new_mesh_ptr_->indices_[idxCnt++] = 0 + faceIdx * 4;
+			new_mesh_ptr_->indices_[idxCnt++] = 1 + faceIdx * 4;
+			new_mesh_ptr_->indices_[idxCnt++] = 2 + faceIdx * 4;
+			new_mesh_ptr_->indices_[idxCnt++] = 3 + faceIdx * 4;
+		}
+		else
+		{
+			new_mesh_ptr_->indices_[idxCnt++] = 0 + faceIdx * 4;
+			new_mesh_ptr_->indices_[idxCnt++] = 1 + faceIdx * 4;
+			new_mesh_ptr_->indices_[idxCnt++] = 2 + faceIdx * 4;
+			new_mesh_ptr_->indices_[idxCnt++] = 2 + faceIdx * 4;
+			new_mesh_ptr_->indices_[idxCnt++] = 1 + faceIdx * 4;
+			new_mesh_ptr_->indices_[idxCnt++] = 3 + faceIdx * 4;
+		}
+
+	}
+	CreateVertexBuffer(*new_mesh_ptr_);
+	CreateIndexBuffer(*new_mesh_ptr_);
+	mesh_dict_[name] = new_mesh_ptr_;
+}
+
+
 void MeshMgr::CalculateTangents(std::array<Vertex, 3>& vertices) {
 	for (int i = 0; i < 3; i++) {
 		glm::vec2 uv_v1 = vertices[(i + 1) % 3].texCoord - vertices[i].texCoord;
