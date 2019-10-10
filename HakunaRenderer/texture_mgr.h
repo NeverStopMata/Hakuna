@@ -18,6 +18,7 @@ public:
 		uint32_t miplevel_size;
 		uint32_t width, height;
 		uint32_t layerCount;
+		VkDescriptorImageInfo descriptor;
 	};
 	std::map<string, shared_ptr<Texture>> tex_dict_;
 	TextureMgr();

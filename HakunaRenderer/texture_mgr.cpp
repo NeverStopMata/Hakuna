@@ -15,8 +15,6 @@ TextureMgr::~TextureMgr()
 std::shared_ptr<TextureMgr::Texture> TextureMgr::LoadTexture2D(const VulkanUtility::VulkanContex& vk_contex, VkFormat format, string file_path) {
 	auto texture_ptr = make_shared<Texture>();
 	int texWidth, texHeight, texChannels;
-
-
 	stbi_uc* pixels = stbi_load(file_path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 	uint32_t miplevel_size = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 	texture_ptr->miplevel_size = miplevel_size;
@@ -62,7 +60,10 @@ std::shared_ptr<TextureMgr::Texture> TextureMgr::LoadTexture2D(const VulkanUtili
 	vkDestroyBuffer(vk_contex.logical_device, staging_buffer, nullptr);
 	vkFreeMemory(vk_contex.logical_device, staging_buffer_memory, nullptr);
 	VulkanUtility::CreateImageView(vk_contex, texture_ptr->texture_image, format, VK_IMAGE_ASPECT_COLOR_BIT, miplevel_size, VkImageViewType::VK_IMAGE_VIEW_TYPE_2D, &texture_ptr->texture_image_view);
-	CreateTextureSampler(vk_contex, *texture_ptr);
+	VulkanUtility::CreateTextureSampler(vk_contex, texture_ptr ->miplevel_size,&(texture_ptr->texture_sampler));	
+	texture_ptr->descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	texture_ptr->descriptor.imageView = texture_ptr->texture_image_view;
+	texture_ptr->descriptor.sampler = texture_ptr->texture_sampler;
 	return texture_ptr;
 }
 
@@ -188,7 +189,10 @@ std::shared_ptr<TextureMgr::Texture> TextureMgr::LoadTextureCube(const VulkanUti
 	vkDestroyBuffer(vk_contex.logical_device, staging_buffer, nullptr);
 	vkFreeMemory(vk_contex.logical_device, staging_buffer_memory, nullptr);
 	VulkanUtility::CreateImageView(vk_contex, texture_cubemap->texture_image, format, VK_IMAGE_ASPECT_COLOR_BIT, texture_cubemap->miplevel_size, VkImageViewType::VK_IMAGE_VIEW_TYPE_CUBE,&texture_cubemap->texture_image_view);
-	CreateTextureSampler(vk_contex, *texture_cubemap);
+	VulkanUtility::CreateTextureSampler(vk_contex, texture_cubemap->miplevel_size, &(texture_cubemap->texture_sampler));
+	texture_cubemap->descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	texture_cubemap->descriptor.imageView = texture_cubemap->texture_image_view;
+	texture_cubemap->descriptor.sampler = texture_cubemap->texture_sampler;
 	return texture_cubemap;
 }
 

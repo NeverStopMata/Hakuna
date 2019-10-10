@@ -27,7 +27,7 @@ void HakunaRenderer::InitVulkan()
 	mesh_mgr_.Init(&vk_contex_);
 	mesh_mgr_.LoadModelFromFile("models/gun.obj", "gun");// temp debug
 
-	//mesh_mgr_.CreateCubeMesh("gun", glm::vec3(10, 0.01, 10));
+	//mesh_mgr_.CreateCubeMesh("gun", glm::vec3(5, 0.1, 5));
 	mesh_mgr_.LoadModelFromFile("models/sky.obj", "sky",glm::vec3(10,10,10));
 
 	texture_mgr_.AddTexture("sky_texcube", texture_mgr_.LoadTextureCube(this->vk_contex_, VK_FORMAT_R16G16B16A16_SFLOAT, "./textures/skybox_tex/hdr/gcanyon_cube.ktx"));
@@ -544,14 +544,6 @@ void HakunaRenderer::CreateOpaqueDescriptorSets() {
 		descriptorWrites[2].descriptorCount = 1;
 		descriptorWrites[2].pBufferInfo = &params_buffer_info;
 
-		vector<VkDescriptorImageInfo> descriptor_image_infos;
-		descriptor_image_infos.resize(material_tex_names_.size());
-		for (int j = 0; j < descriptor_image_infos.size(); j++) {
-			descriptor_image_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			descriptor_image_infos[j].imageView = texture_mgr_.GetTextureByName(material_tex_names_[j])->texture_image_view;
-			descriptor_image_infos[j].sampler = texture_mgr_.GetTextureByName(material_tex_names_[j])->texture_sampler;
-		}
-
 		for (int k = 3; k < descriptorWrites.size(); k++) {
 			descriptorWrites[k].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptorWrites[k].dstSet = opaque_descriptor_sets_[i];
@@ -559,7 +551,7 @@ void HakunaRenderer::CreateOpaqueDescriptorSets() {
 			descriptorWrites[k].dstArrayElement = 0;
 			descriptorWrites[k].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			descriptorWrites[k].descriptorCount = 1;
-			descriptorWrites[k].pImageInfo = &descriptor_image_infos[k - 3];
+			descriptorWrites[k].pImageInfo = &texture_mgr_.GetTextureByName(material_tex_names_[k-3])->descriptor;
 		}
 		vkUpdateDescriptorSets(vk_contex_.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
@@ -596,14 +588,7 @@ void HakunaRenderer::CreateSkyboxDescriptorSets() {
 		params_buffer_info.offset = 0;
 		params_buffer_info.range = sizeof(UboParams);
 
-		VkDescriptorImageInfo descriptor_image_info;
-		descriptor_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		//matatodo use prefilter cubemap as the input of skybox to DEBUG
-		descriptor_image_info.imageView = texture_mgr_.GetTextureByName("sky_texcube")->texture_image_view;
-		descriptor_image_info.sampler = texture_mgr_.GetTextureByName("sky_texcube")->texture_sampler;
-
 		std::vector<VkWriteDescriptorSet> descriptorWrites(4);
-
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].dstSet = skybox_descriptor_sets_[i];
 		descriptorWrites[0].dstBinding = 0;
@@ -634,7 +619,7 @@ void HakunaRenderer::CreateSkyboxDescriptorSets() {
 		descriptorWrites[3].dstArrayElement = 0;
 		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		descriptorWrites[3].descriptorCount = 1;
-		descriptorWrites[3].pImageInfo = &descriptor_image_info;
+		descriptorWrites[3].pImageInfo = &texture_mgr_.GetTextureByName("sky_texcube")->descriptor;
 		vkUpdateDescriptorSets(vk_contex_.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
 }
@@ -644,7 +629,7 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 	auto tStart = std::chrono::high_resolution_clock::now();
 	const VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	/* if the job takes a lot of time, CPU won't wait for queue's job to be done and the main thread will go die.*/
-	const int32_t dim = (env_cubemap_type == EnvCubemapType::ECT_SPECULAR) ? 1024 : 128;
+	const int32_t dim = (env_cubemap_type == EnvCubemapType::ECT_SPECULAR) ? 512 : 128;
 	const uint32_t numMips = static_cast<uint32_t>(floor(std::log2(dim)));
 	auto prefilterCube = make_shared<TextureMgr::Texture>();
 	prefilterCube->miplevel_size = numMips;
@@ -674,23 +659,10 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 		&prefilterCube->texture_image_view);
 	
 	// Sampler
-	VkSamplerCreateInfo samplerCI{};
-	samplerCI.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerCI.maxAnisotropy = 1.0f;
-	samplerCI.magFilter = VK_FILTER_LINEAR;
-	samplerCI.minFilter = VK_FILTER_LINEAR;
-	samplerCI.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerCI.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerCI.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerCI.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerCI.minLod = 0.0f;
-	samplerCI.maxLod = static_cast<float>(numMips);
-	samplerCI.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-
-	if (vkCreateSampler(vk_contex_.logical_device, &samplerCI, nullptr, &prefilterCube->texture_sampler) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create Image view!");
-	}
-
+	VulkanUtility::CreateTextureSampler(vk_contex_, numMips, &prefilterCube->texture_sampler);
+	prefilterCube->descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	prefilterCube->descriptor.imageView = prefilterCube->texture_image_view;
+	prefilterCube->descriptor.sampler = prefilterCube->texture_sampler;
 
 	// FB, Att, RP, Pipe, etc.
 	VkAttachmentDescription attDesc = {};
@@ -863,16 +835,12 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 	if (vkAllocateDescriptorSets(vk_contex_.logical_device, &allocInfo, &descriptorset) != VK_SUCCESS) {
 		throw std::runtime_error("failed to Allocate DescriptorSets!");
 	}
-	VkDescriptorImageInfo skybox_descriptor_image_info;
-	skybox_descriptor_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	skybox_descriptor_image_info.imageView = texture_mgr_.GetTextureByName("sky_texcube")->texture_image_view;
-	skybox_descriptor_image_info.sampler = texture_mgr_.GetTextureByName("sky_texcube")->texture_sampler;
 	VkWriteDescriptorSet writeDescriptorSet{};
 	writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	writeDescriptorSet.dstSet = descriptorset;
 	writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	writeDescriptorSet.dstBinding = 0;
-	writeDescriptorSet.pImageInfo = &skybox_descriptor_image_info;
+	writeDescriptorSet.pImageInfo = &texture_mgr_.GetTextureByName("sky_texcube")->descriptor;
 	writeDescriptorSet.descriptorCount = 1;
 
 	
@@ -1210,22 +1178,10 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GenerateBRDFLUT()
 		&brdf_lut->texture_image_view);
 
 	// Sampler
-	VkSamplerCreateInfo samplerCI{};
-	samplerCI.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerCI.maxAnisotropy = 1.0f;
-	samplerCI.magFilter = VK_FILTER_LINEAR;
-	samplerCI.minFilter = VK_FILTER_LINEAR;
-	samplerCI.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerCI.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerCI.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerCI.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerCI.minLod = 0.0f;
-	samplerCI.maxLod = static_cast<float>(numMips);
-	samplerCI.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-
-	if (vkCreateSampler(vk_contex_.logical_device, &samplerCI, nullptr, &brdf_lut->texture_sampler) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create Image view!");
-	}
+	VulkanUtility::CreateTextureSampler(vk_contex_, numMips, &brdf_lut->texture_sampler);
+	brdf_lut->descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	brdf_lut->descriptor.imageView = brdf_lut->texture_image_view;
+	brdf_lut->descriptor.sampler = brdf_lut->texture_sampler;
 
 
 	// FB, Att, RP, Pipe, etc.

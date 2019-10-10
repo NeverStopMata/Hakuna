@@ -36,8 +36,23 @@ layout(location = 0) out vec4 outColor;
 
 vec3 prefilteredReflection(vec3 N, vec3 R, float roughness)
 {
-	float lod = roughness * (ubo_params.max_reflection_lod-1);	
-	return textureLod(envSpecularSampler, R * vec3(1,-1,1), lod).rgb;
+	float lod = roughness * (ubo_params.max_reflection_lod-1);
+	float scale = pow(2,lod);
+	float NoR = dot(N,R);
+	vec3 dRdx;
+	vec3 dRdy;
+	if(NoR < 0.5)
+	{
+		vec3 biTangent = normalize(N / NoR - R);
+		vec3 tangent = cross(biTangent,R);
+		dRdx = tangent * scale * 0.0045 * (0.9*NoR + 0.1);
+		dRdy = biTangent * scale * 0.0045 * (-3*NoR + 4);
+		return textureGrad(envSpecularSampler, R * vec3(1,-1,1), dRdx  * vec3(1,-1,1) ,dRdy  * vec3(1,-1,1)).rgb;
+	}
+	else
+	{
+		return textureLod(envSpecularSampler, R * vec3(1,-1,1), lod).rgb;
+	}
 }
 
 
@@ -59,6 +74,7 @@ vec3 GetEnvLighting(vec3 N, vec3 V, vec3 R,vec3 F0, float AO,float metallic, flo
 }
 vec3 GetNormal()
 {
+	//return normalize(fragNormal);
 	mat3 TBN = mat3(fragTangent, fragBiTangent, fragNormal);
 	vec3 tangentNormal = texture(normalSampler, fragTexCoord).xyz * 2 - 1;
     return normalize(TBN * tangentNormal);
@@ -103,19 +119,6 @@ vec3 Uncharted2Tonemap(vec3 x)
 	return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
 }
 
-
-vec3 ACESToneMapping(vec3 color, float adapted_lum)
-{
-	const float A = 2.51f;
-	const float B = 0.03f;
-	const float C = 2.43f;
-	const float D = 0.59f;
-	const float E = 0.14f;
-
-	color *= adapted_lum;
-	return (color * (A * color + B)) / (color * (C * color + D) + E);
-}
-
 void main() 
 {
     vec3 N = GetNormal();
@@ -130,9 +133,9 @@ void main()
 	// roughness = mix(roughness,0.0,metallicFlag);
 	// albedo =  mix(albedo,vec3(0.7,0.7,0.7),metallicFlag);
 
-	// roughness = 0.125;
+	// roughness = 0.1;
 	// metallic = 1;
-	// albedo = vec3(0.7,0.7,0.7);
+	// albedo = vec3(0.99,0.99,0.99);
 	//end:use to debug
 
 	float occlusion = texture(occlusionSampler,fragTexCoord).r;
