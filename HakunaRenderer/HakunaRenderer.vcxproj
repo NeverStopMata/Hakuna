@@ -42,13 +42,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -109,7 +109,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;$(MSBuildProjectDirectory)\src\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
@@ -152,7 +152,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;$(MSBuildProjectDirectory)\src\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
@@ -164,34 +164,6 @@
       <AdditionalLibraryDirectories>D:\SDK\glfw-3.3.bin.WIN64\lib-vc2017;D:\SDK\VulkanSDK\1.1.121.2\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="camera.cpp" />
-    <ClCompile Include="directional_light.cpp" />
-    <ClCompile Include="HakunaRenderer.cpp" />
-    <ClCompile Include="input_mgr.cpp" />
-    <ClCompile Include="light.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="mesh.cpp" />
-    <ClCompile Include="RenderPipeline.cpp" />
-    <ClCompile Include="shader_manager.cpp" />
-    <ClCompile Include="texture_mgr.cpp" />
-    <ClCompile Include="mesh_mgr.cpp" />
-    <ClCompile Include="vertex.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="camera.h" />
-    <ClInclude Include="directional_light.h" />
-    <ClInclude Include="HakunaRenderer.h" />
-    <ClInclude Include="input_mgr.h" />
-    <ClInclude Include="light.h" />
-    <ClInclude Include="mesh.h" />
-    <ClInclude Include="shader_manager.h" />
-    <ClInclude Include="texture_mgr.h" />
-    <ClInclude Include="tinyexr.h" />
-    <ClInclude Include="vertex.h" />
-    <ClInclude Include="vulkan_utility.h" />
-    <ClInclude Include="mesh_mgr.h" />
-  </ItemGroup>
   <ItemGroup>
     <None Include="shaders\brdf.inc" />
     <None Include="shaders\common.inc" />
@@ -205,6 +177,39 @@
     <None Include="shaders\prefilter_specular_envmap.frag" />
     <None Include="shaders\skybox.frag" />
     <None Include="shaders\skybox.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Public\camera.h" />
+    <ClInclude Include="src\Public\directional_light.h" />
+    <ClInclude Include="src\Public\draw_item.h" />
+    <ClInclude Include="src\Public\HakunaRenderer.h" />
+    <ClInclude Include="src\Public\input_mgr.h" />
+    <ClInclude Include="src\Public\light.h" />
+    <ClInclude Include="src\Public\material.h" />
+    <ClInclude Include="src\Public\mesh.h" />
+    <ClInclude Include="src\Public\mesh_mgr.h" />
+    <ClInclude Include="src\Public\model.h" />
+    <ClInclude Include="src\Public\perinstance_data.hpp" />
+    <ClInclude Include="src\Public\shader_manager.h" />
+    <ClInclude Include="src\Public\texture_mgr.h" />
+    <ClInclude Include="src\Public\vertex.h" />
+    <ClInclude Include="src\Public\vulkan_utility.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Private\camera.cpp" />
+    <ClCompile Include="src\Private\directional_light.cpp" />
+    <ClCompile Include="src\Private\draw_item.cpp" />
+    <ClCompile Include="src\Private\HakunaRenderer.cpp" />
+    <ClCompile Include="src\Private\input_mgr.cpp" />
+    <ClCompile Include="src\Private\light.cpp" />
+    <ClCompile Include="src\Private\main.cpp" />
+    <ClCompile Include="src\Private\material.cpp" />
+    <ClCompile Include="src\Private\mesh.cpp" />
+    <ClCompile Include="src\Private\mesh_mgr.cpp" />
+    <ClCompile Include="src\Private\model.cpp" />
+    <ClCompile Include="src\Private\shader_manager.cpp" />
+    <ClCompile Include="src\Private\texture_mgr.cpp" />
+    <ClCompile Include="src\Private\vertex.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -25,17 +25,17 @@ void HakunaRenderer::InitVulkan()
 	CreateUniformBuffers();
 
 	mesh_mgr_.Init(&vk_contex_);
-	mesh_mgr_.LoadModelFromFile("models/gun.obj", "gun");// temp debug
+	mesh_mgr_.LoadModelFromFile("resource/models/gun.obj", "gun");// temp debug
 
 	//mesh_mgr_.CreateCubeMesh("gun", glm::vec3(5, 0.1, 5));
-	mesh_mgr_.LoadModelFromFile("models/sky.obj", "sky",glm::vec3(10,10,10));
+	mesh_mgr_.LoadModelFromFile("resource/models/sky.obj", "sky",glm::vec3(10,10,10));
 
-	texture_mgr_.AddTexture("sky_texcube", texture_mgr_.LoadTextureCube(this->vk_contex_, VK_FORMAT_R16G16B16A16_SFLOAT, "./textures/skybox_tex/hdr/gcanyon_cube.ktx"));
-	texture_mgr_.AddTexture("basecolor", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_basecolor.png"));
-	texture_mgr_.AddTexture("metallic",texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_metallic.png"));
-	texture_mgr_.AddTexture("normal", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_normal.png"));
-	texture_mgr_.AddTexture("occlusion", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_occlusion.png"));
-	texture_mgr_.AddTexture("roughness",texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "textures/gun_roughness.png"));
+	texture_mgr_.AddTexture("sky_texcube", texture_mgr_.LoadTextureCube(this->vk_contex_, VK_FORMAT_R16G16B16A16_SFLOAT, "resource/textures/skybox_tex/hdr/gcanyon_cube.ktx"));
+	texture_mgr_.AddTexture("basecolor", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_basecolor.png"));
+	texture_mgr_.AddTexture("metallic",texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_metallic.png"));
+	texture_mgr_.AddTexture("normal", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_normal.png"));
+	texture_mgr_.AddTexture("occlusion", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_occlusion.png"));
+	texture_mgr_.AddTexture("roughness",texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_roughness.png"));
 	texture_mgr_.AddTexture("env_irradiance_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_DIFFUSE));
 	texture_mgr_.AddTexture("env_specular_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_SPECULAR));
 	texture_mgr_.AddTexture("env_brdf_lut", GenerateBRDFLUT());
@@ -188,14 +188,14 @@ void HakunaRenderer::CreateGraphicPipeline() {
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
 	pipelineInfo.basePipelineIndex = -1; // Optional
 
-	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/opaque_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/opaque_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/opaque_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/opaque_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 	if (vkCreateGraphicsPipelines(vk_contex_.logical_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk_contex_.pipeline_struct.opaque_pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
 
-	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/skybox_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/skybox_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/skybox_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/skybox_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 	if (vkCreateGraphicsPipelines(vk_contex_.logical_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk_contex_.pipeline_struct.skybox_pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
@@ -964,14 +964,14 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 	pipelineCI.renderPass = renderpass;
 
 
-	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/filtercube_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/filtercube_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 	if (env_cubemap_type == EnvCubemapType::ECT_SPECULAR)
 	{
-		shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/prefilter_specular_envmap_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/prefilter_specular_envmap_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 	else
 	{
-		shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/prefilter_diffuse_envmap_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/prefilter_diffuse_envmap_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
 	VkPipeline pipeline;
@@ -1366,8 +1366,8 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GenerateBRDFLUT()
 	pipelineCI.pStages = shaderStages.data();
 	pipelineCI.pVertexInputState = &emptyVertexInputStateCI;
 	pipelineCI.renderPass = renderpass;
-	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/gen_brdf_lut_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "shaders/compiled_shaders/gen_brdf_lut_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/gen_brdf_lut_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/gen_brdf_lut_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	VkPipeline pipeline;
 	if (vkCreateGraphicsPipelines(vk_contex_.logical_device, vk_contex_.pipeline_cache, 1, &pipelineCI, nullptr, &pipeline) != VK_SUCCESS) {

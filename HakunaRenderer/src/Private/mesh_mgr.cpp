@@ -56,8 +56,8 @@ void MeshMgr::LoadModelFromFile(std::string model_path,std::string name, glm::ve
 			}
 		}
 	}
-	CreateVertexBuffer(*new_mesh_ptr_);
-	CreateIndexBuffer(*new_mesh_ptr_);
+	new_mesh_ptr_->CreateVertexBuffer(vk_context_ptr_);
+	new_mesh_ptr_->CreateIndexBuffer(vk_context_ptr_);
 	mesh_dict_[name] = new_mesh_ptr_;
 }
 
@@ -101,8 +101,8 @@ void MeshMgr::CreateCubeMesh(std::string name, glm::vec3 scale) {
 		}
 
 	}
-	CreateVertexBuffer(*new_mesh_ptr_);
-	CreateIndexBuffer(*new_mesh_ptr_);
+	new_mesh_ptr_->CreateVertexBuffer(vk_context_ptr_);
+	new_mesh_ptr_->CreateIndexBuffer(vk_context_ptr_);
 	mesh_dict_[name] = new_mesh_ptr_;
 }
 
@@ -136,83 +136,83 @@ void MeshMgr::CleanUpMeshDict() {
 		kv.second->indices_.shrink_to_fit();
 	}
 }
-
-void MeshMgr::CreateVertexBuffer(Mesh& mesh) {
-	std::vector<uint32_t> stadingBufferQueueFamilyIndices{ static_cast<uint32_t>(vk_context_ptr_->queue_family_indices.transferFamily) };
-	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{
-		static_cast<uint32_t>(vk_context_ptr_->queue_family_indices.transferFamily),
-		static_cast<uint32_t>(vk_context_ptr_->queue_family_indices.graphicsFamily) };
-	VkDeviceSize bufferSize = sizeof(mesh.vertices_[0]) * mesh.vertices_.size();
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	VulkanUtility::CreateBuffer(*vk_context_ptr_, bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
-		stagingBufferMemory,
-		1, nullptr);
-
-	void* data;
-	vkMapMemory(vk_context_ptr_->logical_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, mesh.vertices_.data(), (size_t)bufferSize);
-	vkUnmapMemory(vk_context_ptr_->logical_device, stagingBufferMemory);
-
-	VulkanUtility::CreateBuffer(*vk_context_ptr_,
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		mesh.vertex_buffer_,
-		mesh.vertex_buffer_memory_,
-		2,
-		deviceLocalBufferQueueFamilyIndices.data());
-
-	VulkanUtility::CopyBuffer(*vk_context_ptr_, stagingBuffer, mesh.vertex_buffer_, bufferSize);
-
-	vkDestroyBuffer(vk_context_ptr_->logical_device, stagingBuffer, nullptr);
-	vkFreeMemory(vk_context_ptr_->logical_device, stagingBufferMemory, nullptr);
-}
-
-void MeshMgr::CreateIndexBuffer(Mesh& mesh)
-{
-	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{
-		static_cast<uint32_t>(vk_context_ptr_->queue_family_indices.transferFamily),
-		static_cast<uint32_t>(vk_context_ptr_->queue_family_indices.graphicsFamily) };
-	VkDeviceSize bufferSize = sizeof(mesh.indices_[0]) * mesh.indices_.size();
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	VulkanUtility::CreateBuffer(*vk_context_ptr_,
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
-		stagingBufferMemory,
-		1,
-		nullptr);
-
-	void* data;
-	vkMapMemory(vk_context_ptr_->logical_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, mesh.indices_.data(), (size_t)bufferSize);
-	vkUnmapMemory(vk_context_ptr_->logical_device, stagingBufferMemory);
-
-	VulkanUtility::CreateBuffer(*vk_context_ptr_,
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-		VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		mesh.index_buffer_,
-		mesh.index_buffer_memory_,
-		2,
-		deviceLocalBufferQueueFamilyIndices.data());
-
-	VulkanUtility::CopyBuffer(*vk_context_ptr_, stagingBuffer, mesh.index_buffer_, bufferSize);
-
-	vkDestroyBuffer(vk_context_ptr_->logical_device, stagingBuffer, nullptr);
-	vkFreeMemory(vk_context_ptr_->logical_device, stagingBufferMemory, nullptr);
-}
+//
+//void MeshMgr::CreateVertexBuffer(Mesh& mesh) {
+//	std::vector<uint32_t> stadingBufferQueueFamilyIndices{ static_cast<uint32_t>(vk_context_ptr_->queue_family_indices.transferFamily) };
+//	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{
+//		static_cast<uint32_t>(vk_context_ptr_->queue_family_indices.transferFamily),
+//		static_cast<uint32_t>(vk_context_ptr_->queue_family_indices.graphicsFamily) };
+//	VkDeviceSize bufferSize = sizeof(mesh.vertices_[0]) * mesh.vertices_.size();
+//
+//	VkBuffer stagingBuffer;
+//	VkDeviceMemory stagingBufferMemory;
+//	VulkanUtility::CreateBuffer(*vk_context_ptr_, bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+//		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+//		stagingBuffer,
+//		stagingBufferMemory,
+//		1, nullptr);
+//
+//	void* data;
+//	vkMapMemory(vk_context_ptr_->logical_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+//	memcpy(data, mesh.vertices_.data(), (size_t)bufferSize);
+//	vkUnmapMemory(vk_context_ptr_->logical_device, stagingBufferMemory);
+//
+//	VulkanUtility::CreateBuffer(*vk_context_ptr_,
+//		bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+//		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+//		mesh.vertex_buffer_,
+//		mesh.vertex_buffer_memory_,
+//		2,
+//		deviceLocalBufferQueueFamilyIndices.data());
+//
+//	VulkanUtility::CopyBuffer(*vk_context_ptr_, stagingBuffer, mesh.vertex_buffer_, bufferSize);
+//
+//	vkDestroyBuffer(vk_context_ptr_->logical_device, stagingBuffer, nullptr);
+//	vkFreeMemory(vk_context_ptr_->logical_device, stagingBufferMemory, nullptr);
+//}
+//
+//void MeshMgr::CreateIndexBuffer(Mesh& mesh)
+//{
+//	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{
+//		static_cast<uint32_t>(vk_context_ptr_->queue_family_indices.transferFamily),
+//		static_cast<uint32_t>(vk_context_ptr_->queue_family_indices.graphicsFamily) };
+//	VkDeviceSize bufferSize = sizeof(mesh.indices_[0]) * mesh.indices_.size();
+//
+//	VkBuffer stagingBuffer;
+//	VkDeviceMemory stagingBufferMemory;
+//	VulkanUtility::CreateBuffer(*vk_context_ptr_,
+//		bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+//		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+//		stagingBuffer,
+//		stagingBufferMemory,
+//		1,
+//		nullptr);
+//
+//	void* data;
+//	vkMapMemory(vk_context_ptr_->logical_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+//	memcpy(data, mesh.indices_.data(), (size_t)bufferSize);
+//	vkUnmapMemory(vk_context_ptr_->logical_device, stagingBufferMemory);
+//
+//	VulkanUtility::CreateBuffer(*vk_context_ptr_,
+//		bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+//		VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+//		mesh.index_buffer_,
+//		mesh.index_buffer_memory_,
+//		2,
+//		deviceLocalBufferQueueFamilyIndices.data());
+//
+//	VulkanUtility::CopyBuffer(*vk_context_ptr_, stagingBuffer, mesh.index_buffer_, bufferSize);
+//
+//	vkDestroyBuffer(vk_context_ptr_->logical_device, stagingBuffer, nullptr);
+//	vkFreeMemory(vk_context_ptr_->logical_device, stagingBufferMemory, nullptr);
+//}
 
 shared_ptr<Mesh> MeshMgr::GetMeshByName(string mesh_name) {
 	return mesh_dict_[mesh_name];

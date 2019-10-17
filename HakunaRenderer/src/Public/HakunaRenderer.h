@@ -127,9 +127,8 @@ private:
 	bool framebuffer_resized_ = false;
 	bool is_render_skybox = true;
 public:
-	HakunaRenderer():
+	HakunaRenderer() :
 		main_light_(vec3(1,1,1),vec3(1.0,0.9,0.8),1.5f){
-		
 		InitWindow();
 		input_mgr_.Init(window_);
 		InitVulkan();

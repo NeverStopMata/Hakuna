@@ -28,8 +28,8 @@ public:
 	void CreateCubeMesh(std::string name, glm::vec3 scale);
 	void LoadModelFromFile(std::string model_path, std::string name, glm::vec3 scale = glm::vec3(1,1,1));
 	void CleanUpMeshDict();
-	void CreateVertexBuffer(Mesh& mesh);
-	void CreateIndexBuffer(Mesh& mesh);
+	//void CreateVertexBuffer(Mesh& mesh);
+	//void CreateIndexBuffer(Mesh& mesh);
 	shared_ptr<Mesh> GetMeshByName(string mesh_name);
 public:
 	VulkanUtility::VulkanContex* vk_context_ptr_;

@@ -9,25 +9,23 @@ class Camera
 {
 public:
 	Camera() {}
-	Camera(float fov_y, float aspect, float far, float near, vec3 position, vec3 lookat) {
-		fov_y_ = fov_y;
-		aspect_ = aspect;
-		far_ = far;
-		near_ = near;
-		position_ = position;
-		up_ = vec3(0, 1, 0);
-		forward_ = lookat - position_;
-		focus_dist_ = forward_.length();
-		forward_ /= focus_dist_;
-		view_matrix_ = lookAt(position_, lookat, up_);
-		glm::vec3 right = cross(forward_, up_);
-		up_ = cross(right, forward_);
-		proj_matrix_ = perspective(radians(fov_y_), aspect_, near_, far_);
-		forward_move_direction_ = 0;
-		right_move_direction_ = 0;
-		move_speed_ = 0.0002f;
-		is_rotating_ = false;
-	}
+	~Camera() {}
+	Camera(float fov_y, float aspect, float far, float near, vec3 position, vec3 lookat) :
+		fov_y_(fov_y),
+		aspect_(aspect),
+		far_(far),
+		near_(near),
+		position_(position),
+		forward_(glm::normalize(lookat - position_)),
+		view_matrix_(lookAt(position_, lookat, up_)),
+		up_(cross(cross(forward_, vec3(0, 1, 0)), forward_)),
+		proj_matrix_(perspective(radians(fov_y_), aspect_, near_, far_)),
+		forward_move_direction_(0),
+		right_move_direction_(0),
+		move_speed_(0.0002f),
+		is_rotating_(false),
+		pitch_speed_(0),
+		yaw_speed_(0) {}
 
 	mat4x4 GetViewMatrix() {
 		return view_matrix_;
@@ -80,7 +78,6 @@ public:
 	}
 	void SetupCameraContrl(InputManager& input_mgr);
 	void ReleaseCameraContrl(InputManager& input_mgr);
-	~Camera() {}
 private:
 	float fov_y_;
 	float aspect_;
@@ -89,7 +86,6 @@ private:
 	vec3 position_;
 	vec3 forward_;
 	vec3 up_;
-	float focus_dist_;
 	float forward_move_direction_;
 	float right_move_direction_;
 	float move_speed_;
