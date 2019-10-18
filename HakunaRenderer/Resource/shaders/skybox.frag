@@ -25,7 +25,6 @@ void main()
 	vec3 skyCol = texture(skyboxTextureSampler,skyDir * vec3(1,-1,1)).rgb;
 	skyCol = ACESToneMapping(skyCol, 3.0);
 	skyCol = pow(skyCol, vec3(1.0f / 2.2f));
-
 	outColor = vec4(skyCol,1);	
 }
 

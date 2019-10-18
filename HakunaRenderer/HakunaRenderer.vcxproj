@@ -165,20 +165,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="shaders\brdf.inc" />
-    <None Include="shaders\common.inc" />
-    <None Include="shaders\compile.bat" />
-    <None Include="shaders\filtercube.vert" />
-    <None Include="shaders\gen_brdf_lut.frag" />
-    <None Include="shaders\gen_brdf_lut.vert" />
-    <None Include="shaders\opaque.frag" />
-    <None Include="shaders\opaque.vert" />
-    <None Include="shaders\prefilter_diffuse_envmap.frag" />
-    <None Include="shaders\prefilter_specular_envmap.frag" />
-    <None Include="shaders\skybox.frag" />
-    <None Include="shaders\skybox.vert" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="src\Public\camera.h" />
     <ClInclude Include="src\Public\directional_light.h" />
     <ClInclude Include="src\Public\draw_item.h" />
@@ -210,6 +196,20 @@
     <ClCompile Include="src\Private\shader_manager.cpp" />
     <ClCompile Include="src\Private\texture_mgr.cpp" />
     <ClCompile Include="src\Private\vertex.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resource\shaders\brdf.inc" />
+    <None Include="resource\shaders\common.inc" />
+    <None Include="resource\shaders\compile.bat" />
+    <None Include="resource\shaders\filtercube.vert" />
+    <None Include="resource\shaders\gen_brdf_lut.frag" />
+    <None Include="resource\shaders\gen_brdf_lut.vert" />
+    <None Include="resource\shaders\opaque.frag" />
+    <None Include="resource\shaders\opaque.vert" />
+    <None Include="resource\shaders\prefilter_diffuse_envmap.frag" />
+    <None Include="resource\shaders\prefilter_specular_envmap.frag" />
+    <None Include="resource\shaders\skybox.frag" />
+    <None Include="resource\shaders\skybox.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

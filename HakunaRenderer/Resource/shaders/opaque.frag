@@ -41,7 +41,7 @@ vec3 prefilteredReflection(vec3 N, vec3 R, float roughness)
 	float NoR = dot(N,R);
 	vec3 dRdx;
 	vec3 dRdy;
-	if(NoR < 0.5)
+	if(NoR < 0.5 && false)
 	{
 		vec3 biTangent = normalize(N / NoR - R);
 		vec3 tangent = cross(biTangent,R);

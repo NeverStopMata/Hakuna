@@ -15,44 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\opaque.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\opaque.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\skybox.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\skybox.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\filtercube.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\prefilter_diffuse_envmap.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\prefilter_specular_envmap.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\compile.bat">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\gen_brdf_lut.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\gen_brdf_lut.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\brdf.inc">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="shaders\common.inc">
-      <Filter>Shaders</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="src\Public\camera.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -142,5 +104,43 @@
     <ClCompile Include="src\Private\draw_item.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resource\shaders\brdf.inc">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\common.inc">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\compile.bat">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\filtercube.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\gen_brdf_lut.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\gen_brdf_lut.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\opaque.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\opaque.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\prefilter_diffuse_envmap.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\prefilter_specular_envmap.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\skybox.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resource\shaders\skybox.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

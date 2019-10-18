@@ -24,10 +24,6 @@ static _CrtMemState s1, s2, s3;
 #include "draw_item.h"
 #include "perinstance_data.hpp"
 int main() {
-
-	DrawItem<PerInstanceDataWithLightmap> testDI;
-	testDI.print_instance_data();
-
 #ifdef _DEBUG
 	_CrtMemCheckpoint(&s1);
 #endif // _DEBUG

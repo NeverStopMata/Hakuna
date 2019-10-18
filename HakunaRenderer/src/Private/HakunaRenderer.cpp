@@ -29,24 +29,29 @@ void HakunaRenderer::InitVulkan()
 
 	//mesh_mgr_.CreateCubeMesh("gun", glm::vec3(5, 0.1, 5));
 	mesh_mgr_.LoadModelFromFile("resource/models/sky.obj", "sky",glm::vec3(10,10,10));
-
-	texture_mgr_.AddTexture("sky_texcube", texture_mgr_.LoadTextureCube(this->vk_contex_, VK_FORMAT_R16G16B16A16_SFLOAT, "resource/textures/skybox_tex/hdr/gcanyon_cube.ktx"));
-	texture_mgr_.AddTexture("basecolor", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_basecolor.png"));
-	texture_mgr_.AddTexture("metallic",texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_metallic.png"));
-	texture_mgr_.AddTexture("normal", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_normal.png"));
-	texture_mgr_.AddTexture("occlusion", texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_occlusion.png"));
-	texture_mgr_.AddTexture("roughness",texture_mgr_.LoadTexture2D(this->vk_contex_, VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_roughness.png"));
+	texture_mgr_.AddTexture("sky_texcube", (new Texture(&vk_contex_))->LoadTextureCube(VK_FORMAT_R16G16B16A16_SFLOAT, "resource/textures/skybox_tex/hdr/gcanyon_cube.ktx"));
+	texture_mgr_.AddTexture("basecolor", (new Texture(&vk_contex_))->LoadTexture2D(VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_basecolor.png"));
+	auto test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
+	texture_mgr_.AddTexture("metallic", (new Texture(&vk_contex_))->LoadTexture2D(VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_metallic.png"));
+	texture_mgr_.AddTexture("normal", (new Texture(&vk_contex_))->LoadTexture2D(VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_normal.png"));
+	texture_mgr_.AddTexture("occlusion", (new Texture(&vk_contex_))->LoadTexture2D(VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_occlusion.png"));
+	texture_mgr_.AddTexture("roughness", (new Texture(&vk_contex_))->LoadTexture2D(VK_FORMAT_R8G8B8A8_UNORM, "resource/textures/gun_roughness.png"));
 	texture_mgr_.AddTexture("env_irradiance_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_DIFFUSE));
 	texture_mgr_.AddTexture("env_specular_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_SPECULAR));
 	texture_mgr_.AddTexture("env_brdf_lut", GenerateBRDFLUT());
 	
 
+	test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
+
 	CreateSyncObjects();
 	//we need the sphere mesh(sky) to render the prefilter cubemap.
+	test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
 	CreateOpaqueDescriptorSets();
+	test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
 	CreateSkyboxDescriptorSets();
+	test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
 	CreateCommandBuffers();
-
+	test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
 }
 
 void HakunaRenderer::InitWindow()
@@ -154,13 +159,13 @@ void HakunaRenderer::CreateGraphicPipeline() {
 	depthStencil.front = {}; // Optional
 	depthStencil.back = {}; // Optional
 
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
-	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts = &vk_contex_.descriptor_set_layout;
-	pipelineLayoutInfo.pushConstantRangeCount = 0;
+	VkPipelineLayoutCreateInfo pipelineLayoutCI = {};
+	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutCI.setLayoutCount = 1;
+	pipelineLayoutCI.pSetLayouts = &vk_contex_.descriptor_set_layout;
+	pipelineLayoutCI.pushConstantRangeCount = 0;
 
-	if (vkCreatePipelineLayout(vk_contex_.logical_device, &pipelineLayoutInfo, nullptr, &vk_contex_.pipeline_layout) != VK_SUCCESS) {
+	if (vkCreatePipelineLayout(vk_contex_.logical_device, &pipelineLayoutCI, nullptr, &vk_contex_.pipeline_layout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
@@ -449,7 +454,7 @@ void HakunaRenderer::UpdateUniformBuffer(uint32_t currentImage) {
 
 	UboParams ubo_params = {};
 	ubo_params.cam_world_pos = cam_.GetWorldPos();
-	ubo_params.max_reflection_lod = static_cast<float>(texture_mgr_.tex_dict_["env_specular_cubemap"]->miplevel_size);
+	ubo_params.max_reflection_lod = static_cast<float>(texture_mgr_.GetTextureByName("env_specular_cubemap")->miplevel_size_);
 	vkMapMemory(vk_contex_.logical_device, params_ubos_[currentImage].params_buffer_memory, 0, sizeof(ubo_params), 0, &data);
 	memcpy(data, &ubo_params, sizeof(ubo_params));
 	vkUnmapMemory(vk_contex_.logical_device, params_ubos_[currentImage].params_buffer_memory);
@@ -551,7 +556,7 @@ void HakunaRenderer::CreateOpaqueDescriptorSets() {
 			descriptorWrites[k].dstArrayElement = 0;
 			descriptorWrites[k].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			descriptorWrites[k].descriptorCount = 1;
-			descriptorWrites[k].pImageInfo = &texture_mgr_.GetTextureByName(material_tex_names_[k-3])->descriptor;
+			descriptorWrites[k].pImageInfo = &texture_mgr_.GetTextureByName(material_tex_names_[k-3])->descriptor_;
 		}
 		vkUpdateDescriptorSets(vk_contex_.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
@@ -619,20 +624,20 @@ void HakunaRenderer::CreateSkyboxDescriptorSets() {
 		descriptorWrites[3].dstArrayElement = 0;
 		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		descriptorWrites[3].descriptorCount = 1;
-		descriptorWrites[3].pImageInfo = &texture_mgr_.GetTextureByName("sky_texcube")->descriptor;
+		descriptorWrites[3].pImageInfo = &texture_mgr_.GetTextureByName("sky_texcube")->descriptor_;
 		vkUpdateDescriptorSets(vk_contex_.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
 }
 
-std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapType env_cubemap_type)
+std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapType env_cubemap_type)
 {
 	auto tStart = std::chrono::high_resolution_clock::now();
 	const VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	/* if the job takes a lot of time, CPU won't wait for queue's job to be done and the main thread will go die.*/
 	const int32_t dim = (env_cubemap_type == EnvCubemapType::ECT_SPECULAR) ? 512 : 128;
 	const uint32_t numMips = static_cast<uint32_t>(floor(std::log2(dim)));
-	auto prefilterCube = make_shared<TextureMgr::Texture>();
-	prefilterCube->miplevel_size = numMips;
+	auto prefilterCube = std::make_shared<Texture>(&vk_contex_);
+	prefilterCube->miplevel_size_ = numMips;
 	// Pre-filtered cube map
 	// Image
 	VulkanUtility::CreateImage(
@@ -646,23 +651,23 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		prefilterCube->texture_image,
-		prefilterCube->texture_image_memory);
+		prefilterCube->texture_image_,
+		prefilterCube->texture_image_memory_);
 	//Image View	
 	VulkanUtility::CreateImageView(
 		vk_contex_, 
-		prefilterCube->texture_image, 
+		prefilterCube->texture_image_, 
 		format, 
 		VK_IMAGE_ASPECT_COLOR_BIT, 
 		numMips,
 		VkImageViewType::VK_IMAGE_VIEW_TYPE_CUBE,
-		&prefilterCube->texture_image_view);
+		&prefilterCube->texture_image_view_);
 	
 	// Sampler
-	VulkanUtility::CreateTextureSampler(vk_contex_, numMips, &prefilterCube->texture_sampler);
-	prefilterCube->descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	prefilterCube->descriptor.imageView = prefilterCube->texture_image_view;
-	prefilterCube->descriptor.sampler = prefilterCube->texture_sampler;
+	VulkanUtility::CreateTextureSampler(vk_contex_, numMips, &prefilterCube->texture_sampler_);
+	prefilterCube->descriptor_.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	prefilterCube->descriptor_.imageView = prefilterCube->texture_image_view_;
+	prefilterCube->descriptor_.sampler = prefilterCube->texture_sampler_;
 
 	// FB, Att, RP, Pipe, etc.
 	VkAttachmentDescription attDesc = {};
@@ -840,7 +845,7 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 	writeDescriptorSet.dstSet = descriptorset;
 	writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	writeDescriptorSet.dstBinding = 0;
-	writeDescriptorSet.pImageInfo = &texture_mgr_.GetTextureByName("sky_texcube")->descriptor;
+	writeDescriptorSet.pImageInfo = &texture_mgr_.GetTextureByName("sky_texcube")->descriptor_;
 	writeDescriptorSet.descriptorCount = 1;
 
 	
@@ -1042,7 +1047,7 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 	// Change image layout for all cubemap faces to transfer destination
 	VulkanUtility::setImageLayout(
 		cmdBuf,
-		prefilterCube->texture_image,
+		prefilterCube->texture_image_,
 		format,
 		VK_IMAGE_LAYOUT_UNDEFINED,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -1098,7 +1103,7 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 				cmdBuf,
 				offscreen.image,
 				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-				prefilterCube->texture_image,
+				prefilterCube->texture_image_,
 				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 				1,
 				&copyRegion);
@@ -1117,7 +1122,7 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 
 	VulkanUtility::setImageLayout(
 		cmdBuf,
-		prefilterCube->texture_image,
+		prefilterCube->texture_image_,
 		format,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -1143,15 +1148,15 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GeneratePrefilterEnvCubemap
 	return prefilterCube;
 }
 
-std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GenerateBRDFLUT()
+std::shared_ptr<Texture> HakunaRenderer::GenerateBRDFLUT()
 {
 	auto tStart = std::chrono::high_resolution_clock::now();
 	const VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	/* if the job takes a lot of time, CPU won't wait for queue's job to be done and the main thread will go die.*/
 	const int32_t dim = 512;
 	const uint32_t numMips = 1;
-	auto brdf_lut = make_shared<TextureMgr::Texture>();
-	brdf_lut->miplevel_size = numMips;
+	auto brdf_lut =std::make_shared<Texture>(&vk_contex_);
+	brdf_lut->miplevel_size_ = numMips;
 	// Pre-filtered cube map
 	// Image
 	VulkanUtility::CreateImage(
@@ -1165,23 +1170,23 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GenerateBRDFLUT()
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		brdf_lut->texture_image,
-		brdf_lut->texture_image_memory);
+		brdf_lut->texture_image_,
+		brdf_lut->texture_image_memory_);
 	//Image View	
 	VulkanUtility::CreateImageView(
 		vk_contex_,
-		brdf_lut->texture_image,
+		brdf_lut->texture_image_,
 		format,
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		numMips,
 		VkImageViewType::VK_IMAGE_VIEW_TYPE_2D,
-		&brdf_lut->texture_image_view);
+		&brdf_lut->texture_image_view_);
 
 	// Sampler
-	VulkanUtility::CreateTextureSampler(vk_contex_, numMips, &brdf_lut->texture_sampler);
-	brdf_lut->descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	brdf_lut->descriptor.imageView = brdf_lut->texture_image_view;
-	brdf_lut->descriptor.sampler = brdf_lut->texture_sampler;
+	VulkanUtility::CreateTextureSampler(vk_contex_, numMips, &brdf_lut->texture_sampler_);
+	brdf_lut->descriptor_.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	brdf_lut->descriptor_.imageView = brdf_lut->texture_image_view_;
+	brdf_lut->descriptor_.sampler = brdf_lut->texture_sampler_;
 
 
 	// FB, Att, RP, Pipe, etc.
@@ -1238,7 +1243,7 @@ std::shared_ptr<TextureMgr::Texture> HakunaRenderer::GenerateBRDFLUT()
 	fbufCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	fbufCreateInfo.renderPass = renderpass;
 	fbufCreateInfo.attachmentCount = 1;
-	fbufCreateInfo.pAttachments = &brdf_lut->texture_image_view;
+	fbufCreateInfo.pAttachments = &brdf_lut->texture_image_view_;
 	fbufCreateInfo.width = dim;
 	fbufCreateInfo.height = dim;
 	fbufCreateInfo.layers = 1;

@@ -161,8 +161,7 @@ public:
 				glfwSetWindowTitle(window_, ("Hakuna[FPS:" + std::to_string(tmp_fps) + "]").c_str());
 				frame_cnt = 0;
 				start_time_for_cal_fps = std::chrono::high_resolution_clock::now();
-			}
-			
+			}	
 #endif
 		}
 		vkDeviceWaitIdle(vk_contex_.logical_device);
@@ -186,11 +185,8 @@ private:
 		ECT_SPECULAR,
 		ECT_DIFFUSE,
 	};
-	std::shared_ptr<TextureMgr::Texture> GeneratePrefilterEnvCubemap(EnvCubemapType env_cubemap_type);
-	std::shared_ptr<TextureMgr::Texture> GenerateBRDFLUT();
-	//void CreateIrradianceMap();
-
-
+	std::shared_ptr<Texture> GeneratePrefilterEnvCubemap(EnvCubemapType env_cubemap_type);
+	std::shared_ptr<Texture> GenerateBRDFLUT();
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, 
