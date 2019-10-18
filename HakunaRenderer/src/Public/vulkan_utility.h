@@ -98,7 +98,7 @@ public:
 
 
 
-	static VkCommandBuffer BeginSingleTimeCommands(const VulkanContex& vk_contex, uint32_t queueFamilyIndex) {
+	static void BeginSingleTimeCommands(const VulkanContex& vk_contex, uint32_t queueFamilyIndex, VkCommandBuffer& commandBuffer) {
 		VkCommandPool commandPool;
 		if (queueFamilyIndex == vk_contex.queue_family_indices.transferFamily) {
 			commandPool = vk_contex.transfer_command_pool;
@@ -115,7 +115,7 @@ public:
 		allocInfo.commandPool = commandPool;
 		allocInfo.commandBufferCount = 1;
 
-		VkCommandBuffer commandBuffer;
+		//VkCommandBuffer commandBuffer;
 		vkAllocateCommandBuffers(vk_contex.logical_device, &allocInfo, &commandBuffer);
 
 		VkCommandBufferBeginInfo beginInfo = {};
@@ -124,7 +124,7 @@ public:
 
 		vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-		return commandBuffer;
+		//return commandBuffer;
 	}
 
 	static void EndSingleTimeCommands(const VulkanContex& vk_contex, VkCommandBuffer commandBuffer, uint32_t queueFamilyIndex) {
@@ -153,7 +153,8 @@ public:
 	}
 
 	static void CopyBufferToImage(const VulkanContex& vk_contex, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
-		VkCommandBuffer commandBuffer = BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily));
+		VkCommandBuffer commandBuffer;
+		BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily), commandBuffer);
 		VkBufferImageCopy region = {};
 		region.bufferOffset = 0;
 		region.bufferRowLength = 0;
@@ -278,7 +279,6 @@ public:
 
 	}
 
-
 	static void TransitionImageLayout(
 		const VulkanContex& vk_contex, 
 		VkImage image, VkFormat format, 
@@ -287,7 +287,8 @@ public:
 		uint32_t mipLevels, 
 		uint32_t layer_cnt = 1, 
 		VkImageAspectFlagBits imageAspect = VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT) {
-		VkCommandBuffer commandBuffer = BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily));
+		VkCommandBuffer commandBuffer;
+		BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily), commandBuffer);
 
 		VkImageSubresourceRange subresourceRange = {};
 		subresourceRange.aspectMask = imageAspect;
@@ -409,7 +410,8 @@ public:
 		if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
 			throw std::runtime_error("texture image format does not support linear blitting!");
 		}
-		VkCommandBuffer commandBuffer = BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily));
+		VkCommandBuffer commandBuffer;
+		BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily), commandBuffer);
 
 		VkImageMemoryBarrier barrier = {};
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -977,7 +979,8 @@ public:
 	}
 
 	static void CopyBuffer(const VulkanContex& vk_contex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-		VkCommandBuffer commandBuffer = BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily));
+		VkCommandBuffer commandBuffer;
+		BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily), commandBuffer);
 		VkBufferCopy copyRegion = {};
 		copyRegion.size = size;
 		vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);

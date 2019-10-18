@@ -1015,7 +1015,8 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
 	};
 
-	VkCommandBuffer cmdBuf = VulkanUtility::BeginSingleTimeCommands(vk_contex_, static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily));
+	VkCommandBuffer cmdBuf;
+	VulkanUtility::BeginSingleTimeCommands(vk_contex_, static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily), cmdBuf);
 	VkViewport viewport{};
 	viewport.width = (float)dim;
 	viewport.height = (float)dim;
@@ -1394,7 +1395,8 @@ std::shared_ptr<Texture> HakunaRenderer::GenerateBRDFLUT()
 	renderPassBeginInfo.clearValueCount = 1;
 	renderPassBeginInfo.pClearValues = clearValues;
 
-	VkCommandBuffer cmdBuf = VulkanUtility::BeginSingleTimeCommands(vk_contex_, static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily));
+	VkCommandBuffer cmdBuf;
+	VulkanUtility::BeginSingleTimeCommands(vk_contex_, static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily), cmdBuf);
 	// Render scene from cube face's point of view
 	vkCmdBeginRenderPass(cmdBuf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 	VkViewport viewport{};

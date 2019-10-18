@@ -216,7 +216,8 @@ std::shared_ptr<Texture> Texture::LoadTextureCube(VkFormat format, string file_p
 		this->miplevel_size_,
 		static_cast<uint32_t>(6)
 	);
-	VkCommandBuffer commandBuffer = VulkanUtility::BeginSingleTimeCommands(*vk_contex_ptr_, static_cast<uint32_t>(vk_contex_ptr_->queue_family_indices.transferFamily));
+	VkCommandBuffer commandBuffer;
+	VulkanUtility::BeginSingleTimeCommands(*vk_contex_ptr_, static_cast<uint32_t>(vk_contex_ptr_->queue_family_indices.transferFamily), commandBuffer);
 	vkCmdCopyBufferToImage(
 		commandBuffer,
 		staging_buffer,
