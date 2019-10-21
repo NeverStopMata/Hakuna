@@ -107,9 +107,9 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);NOMINMAX</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;$(MSBuildProjectDirectory)\src\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\tinygltf;D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;$(MSBuildProjectDirectory)\src\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
@@ -150,9 +150,9 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);NOMINMAX</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;$(MSBuildProjectDirectory)\src\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\tinygltf;D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;D:\SDK\stb_image;$(MSBuildProjectDirectory)\src\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
@@ -180,6 +180,10 @@
     <ClInclude Include="src\Public\texture_mgr.h" />
     <ClInclude Include="src\Public\vertex.h" />
     <ClInclude Include="src\Public\vk_swapchain.h" />
+    <ClInclude Include="src\Public\VulkanBuffer.hpp" />
+    <ClInclude Include="src\Public\VulkanDevice.hpp" />
+    <ClInclude Include="src\Public\VulkanglTFModel.hpp" />
+    <ClInclude Include="src\Public\VulkanInitializers.hpp" />
     <ClInclude Include="src\Public\VulkanTools.h" />
     <ClInclude Include="src\Public\vulkan_utility.h" />
   </ItemGroup>

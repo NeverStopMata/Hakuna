@@ -66,6 +66,18 @@
     <ClInclude Include="src\Public\vk_swapchain.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Public\VulkanglTFModel.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\VulkanDevice.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\VulkanInitializers.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\VulkanBuffer.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Private\camera.cpp">
