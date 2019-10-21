@@ -37,19 +37,10 @@ void HakunaRenderer::InitVulkan()
 	texture_mgr_.AddTexture("env_irradiance_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_DIFFUSE));
 	texture_mgr_.AddTexture("env_specular_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_SPECULAR));
 	texture_mgr_.AddTexture("env_brdf_lut", GenerateBRDFLUT());
-	
-
-	test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
-
 	CreateSyncObjects();
-	//we need the sphere mesh(sky) to render the prefilter cubemap.
-	test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
 	CreateOpaqueDescriptorSets();
-	test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
 	CreateSkyboxDescriptorSets();
-	test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
 	CreateCommandBuffers();
-	test2 = texture_mgr_.GetTextureByName("basecolor").use_count();
 }
 
 void HakunaRenderer::InitWindow()
