@@ -50,7 +50,6 @@ struct UboParams {
 	alignas(4) float max_reflection_lod;
 };
 
-
 VkResult CreateDebugUtilsMessengerEXT(
 	VkInstance instance, 
 	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, 
@@ -97,8 +96,6 @@ private:
 	};
 	vector<ParamsBufferSturct> params_ubos_;
 
-
-
 	vector<string> material_tex_names_ = { 
 		"basecolor", 
 		"normal", 
@@ -132,7 +129,7 @@ public:
 		InitWindow();
 		input_mgr_.Init(window_);
 		InitVulkan();
-		Camera temp_cam(60.f, vk_contex_.swapchain_extent.width / (float)vk_contex_.swapchain_extent.height, 100.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
+		Camera temp_cam(60.f, vk_contex_.swapchain.extent_.width / (float)vk_contex_.swapchain.extent_.height, 100.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
 		cam_ = temp_cam;
 		cam_.SetupCameraContrl(input_mgr_);
 	}

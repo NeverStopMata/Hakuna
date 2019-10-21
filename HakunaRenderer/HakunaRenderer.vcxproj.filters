@@ -60,6 +60,12 @@
     <ClInclude Include="src\Public\perinstance_data.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Public\VulkanTools.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\vk_swapchain.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Private\camera.cpp">
@@ -102,6 +108,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Private\draw_item.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Private\VulkanTools.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Private\vk_swapchain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

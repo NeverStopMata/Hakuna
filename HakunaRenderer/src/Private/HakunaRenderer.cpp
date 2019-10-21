@@ -7,17 +7,15 @@ void HakunaRenderer::InitVulkan()
 	SetupDebugMessenger();
 	/*The window surface needs to be created right after the instance creation, because
 	it can actually influence the physical device selection.*/
-	VulkanUtility::CreateSurface(vk_contex_, window_);
+	vk_contex_.swapchain.CreateSurface(window_, vk_contex_.vk_instance);
 	VulkanUtility::PickPhysicalDevice(vk_contex_);
 	VulkanUtility::CreateLogicalDevice(vk_contex_);
-
-	VulkanUtility::CreateSwapChain(vk_contex_,window_, vsync_);
-	VulkanUtility::CreateImageViewsForSwapChain(vk_contex_);
+	vk_contex_.swapchain.Connect(vk_contex_.vk_instance, vk_contex_.physical_device, vk_contex_.logical_device);
+	vk_contex_.swapchain.CreateSwapchain(window_, false);
 	VulkanUtility::CreateRenderPass(vk_contex_);
 	VulkanUtility::CreateDescriptorSetLayout(vk_contex_);
 	CreateGraphicPipeline();
 	VulkanUtility::CreateCommandPools(vk_contex_);
-
 	VulkanUtility::CreateColorResources(vk_contex_);
 	VulkanUtility::CreateDepthResources(vk_contex_);
 	VulkanUtility::CreateFramebuffers(vk_contex_);
@@ -100,15 +98,15 @@ void HakunaRenderer::CreateGraphicPipeline() {
 	VkViewport viewport = {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = (float)vk_contex_.swapchain_extent.width;
-	viewport.height = (float)vk_contex_.swapchain_extent.height;
+	viewport.width = (float)vk_contex_.swapchain.extent_.width;
+	viewport.height = (float)vk_contex_.swapchain.extent_.height;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
 	//”√”⁄≤√ºÙ
 	VkRect2D scissor = {};
 	scissor.offset = { 0, 0 };
-	scissor.extent = vk_contex_.swapchain_extent;
+	scissor.extent = vk_contex_.swapchain.extent_;
 
 	VkPipelineViewportStateCreateInfo viewportState = {};
 	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -235,7 +233,7 @@ void HakunaRenderer::CreateCommandBuffers() {
 		renderPassBeginInfo.renderPass = vk_contex_.renderpass;
 		renderPassBeginInfo.framebuffer = vk_contex_.swapchain_framebuffers[i];
 		renderPassBeginInfo.renderArea.offset = { 0, 0 };
-		renderPassBeginInfo.renderArea.extent = vk_contex_.swapchain_extent;
+		renderPassBeginInfo.renderArea.extent = vk_contex_.swapchain.extent_;
 		std::array<VkClearValue, 2> clearValues = {};
 		clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
 		/*The range of depths in the depth buffer is 0.0 to 1.0 in Vulkan, where 1.0 lies at the far view plane and 0.0 at the near view plane. */
@@ -285,7 +283,7 @@ void HakunaRenderer::DrawFrame(){
 		VK_TRUE, 
 		std::numeric_limits<uint64_t>::max());
 	uint32_t imageIndex;
-	VkResult result = vkAcquireNextImageKHR(vk_contex_.logical_device, vk_contex_.swapchain, std::numeric_limits<uint64_t>::max(), image_available_semaphores_[current_frame_], VK_NULL_HANDLE, &imageIndex);
+	VkResult result = vkAcquireNextImageKHR(vk_contex_.logical_device, vk_contex_.swapchain.swapChain_, std::numeric_limits<uint64_t>::max(), image_available_semaphores_[current_frame_], VK_NULL_HANDLE, &imageIndex);
 
 	/*VK_ERROR_OUT_OF_DATE_KHR: The swap chain has become incompatible with the surface and can no longer be used for rendering. 
 	Usually happens after a window resize.
@@ -326,7 +324,7 @@ void HakunaRenderer::DrawFrame(){
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = render_finish_semaphores;
-	VkSwapchainKHR swapChains[] = { vk_contex_.swapchain };
+	VkSwapchainKHR swapChains[] = { vk_contex_.swapchain.swapChain_ };
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = swapChains;
 	presentInfo.pImageIndices = &imageIndex;
@@ -372,9 +370,8 @@ void HakunaRenderer::ReCreateSwapChain() {
 	}
 	cam_.UpdateAspect((float)width / (float)height);
 	vkDeviceWaitIdle(vk_contex_.logical_device);
-	VulkanUtility::CleanupSwapChain(vk_contex_, command_buffers_);
-	VulkanUtility::CreateSwapChain(vk_contex_, window_,vsync_);
-	VulkanUtility::CreateImageViewsForSwapChain(vk_contex_);
+	VulkanUtility::CleanupFramebufferAndPipeline(vk_contex_, command_buffers_);
+	vk_contex_.swapchain.CreateSwapchain(window_, false);
 	VulkanUtility::CreateRenderPass(vk_contex_);
 	CreateGraphicPipeline();
 	VulkanUtility::CreateColorResources(vk_contex_);
@@ -390,11 +387,11 @@ void HakunaRenderer::CreateUniformBuffers() {
 		static_cast<uint32_t>(vk_contex_.queue_family_indices.transferFamily),
 		static_cast<uint32_t>(vk_contex_.queue_family_indices.graphicsFamily) };
 
-	mvp_ubos_.resize(vk_contex_.swapchain_images.size());
-	directional_light_ubos_.resize(vk_contex_.swapchain_images.size());
-	params_ubos_.resize(vk_contex_.swapchain_images.size());
+	mvp_ubos_.resize(vk_contex_.swapchain.imageCount_);
+	directional_light_ubos_.resize(vk_contex_.swapchain.imageCount_);
+	params_ubos_.resize(vk_contex_.swapchain.imageCount_);
 
-	for (size_t i = 0; i < vk_contex_.swapchain_images.size(); i++) {
+	for (size_t i = 0; i < vk_contex_.swapchain.imageCount_; i++) {
 		VulkanUtility::CreateBuffer(vk_contex_,
 			sizeof(UboMVP),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
@@ -462,9 +459,10 @@ void HakunaRenderer::UpdateUniformBuffer(uint32_t currentImage) {
 void HakunaRenderer::Cleanup()
 {
 	shader_mgr_.CleanShaderModules(vk_contex_);
-	VulkanUtility::CleanupSwapChain(vk_contex_, command_buffers_);
+	VulkanUtility::CleanupFramebufferAndPipeline(vk_contex_, command_buffers_);
+	vk_contex_.swapchain.Cleanup();
 	vkDestroyDescriptorSetLayout(vk_contex_.logical_device, vk_contex_.descriptor_set_layout, nullptr);
-	for (size_t i = 0; i < vk_contex_.swapchain_images.size(); i++) {
+	for (size_t i = 0; i < vk_contex_.swapchain.imageCount_; i++) {
 		vkDestroyBuffer(vk_contex_.logical_device, mvp_ubos_[i].mvp_buffer, nullptr);
 		vkFreeMemory(vk_contex_.logical_device, mvp_ubos_[i].mvp_buffer_memory, nullptr);
 		vkDestroyBuffer(vk_contex_.logical_device, directional_light_ubos_[i].directional_light_buffer, nullptr);
@@ -488,7 +486,6 @@ void HakunaRenderer::Cleanup()
 	if (enableValidationLayers) {
 		DestroyDebugUtilsMessengerEXT(vk_contex_.vk_instance, debug_messenger_, nullptr);
 	}
-	vkDestroySurfaceKHR(vk_contex_.vk_instance, vk_contex_.surface, nullptr);//Make sure that the surface is destroyed before the instance.
 	vkDestroyInstance(vk_contex_.vk_instance, nullptr);
 
 	cam_.ReleaseCameraContrl(input_mgr_);
@@ -497,17 +494,17 @@ void HakunaRenderer::Cleanup()
 }
 
 void HakunaRenderer::CreateOpaqueDescriptorSets() {
-	std::vector<VkDescriptorSetLayout> layouts(vk_contex_.swapchain_images.size(), vk_contex_.descriptor_set_layout);
+	std::vector<VkDescriptorSetLayout> layouts(vk_contex_.swapchain.imageCount_, vk_contex_.descriptor_set_layout);
 	VkDescriptorSetAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = vk_contex_.descriptor_pool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(vk_contex_.swapchain_images.size());
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(vk_contex_.swapchain.imageCount_);
 	allocInfo.pSetLayouts = layouts.data();
-	opaque_descriptor_sets_.resize(vk_contex_.swapchain_images.size());
+	opaque_descriptor_sets_.resize(vk_contex_.swapchain.imageCount_);
 	if (vkAllocateDescriptorSets(vk_contex_.logical_device, &allocInfo, opaque_descriptor_sets_.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
-	for (size_t i = 0; i < vk_contex_.swapchain_images.size(); i++) {
+	for (size_t i = 0; i < vk_contex_.swapchain.imageCount_; i++) {
 		VkDescriptorBufferInfo mvp_buffer_Info = {};
 		mvp_buffer_Info.buffer = mvp_ubos_[i].mvp_buffer;
 		mvp_buffer_Info.offset = 0;
@@ -563,13 +560,13 @@ void HakunaRenderer::CreateOpaqueDescriptorSets() {
 }
 
 void HakunaRenderer::CreateSkyboxDescriptorSets() {
-	std::vector<VkDescriptorSetLayout> layouts(vk_contex_.swapchain_images.size(), vk_contex_.descriptor_set_layout);
+	std::vector<VkDescriptorSetLayout> layouts(vk_contex_.swapchain.imageCount_, vk_contex_.descriptor_set_layout);
 	VkDescriptorSetAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = vk_contex_.descriptor_pool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(vk_contex_.swapchain_images.size());
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(vk_contex_.swapchain.imageCount_);
 	allocInfo.pSetLayouts = layouts.data();
-	skybox_descriptor_sets_.resize(vk_contex_.swapchain_images.size());
+	skybox_descriptor_sets_.resize(vk_contex_.swapchain.imageCount_);
 	if (vkAllocateDescriptorSets(vk_contex_.logical_device, &allocInfo, skybox_descriptor_sets_.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
@@ -577,7 +574,7 @@ void HakunaRenderer::CreateSkyboxDescriptorSets() {
 	i++;
 	i = i * 5;
 
-	for (size_t i = 0; i < vk_contex_.swapchain_images.size(); i++) {
+	for (size_t i = 0; i < vk_contex_.swapchain.imageCount_; i++) {
 		VkDescriptorBufferInfo mvp_buffer_Info = {};
 		mvp_buffer_Info.buffer = mvp_ubos_[i].mvp_buffer;
 		mvp_buffer_Info.offset = 0;

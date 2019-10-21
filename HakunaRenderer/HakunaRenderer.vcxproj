@@ -179,6 +179,8 @@
     <ClInclude Include="src\Public\shader_manager.h" />
     <ClInclude Include="src\Public\texture_mgr.h" />
     <ClInclude Include="src\Public\vertex.h" />
+    <ClInclude Include="src\Public\vk_swapchain.h" />
+    <ClInclude Include="src\Public\VulkanTools.h" />
     <ClInclude Include="src\Public\vulkan_utility.h" />
   </ItemGroup>
   <ItemGroup>
@@ -196,6 +198,8 @@
     <ClCompile Include="src\Private\shader_manager.cpp" />
     <ClCompile Include="src\Private\texture_mgr.cpp" />
     <ClCompile Include="src\Private\vertex.cpp" />
+    <ClCompile Include="src\Private\vk_swapchain.cpp" />
+    <ClCompile Include="src\Private\VulkanTools.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resource\shaders\brdf.inc" />

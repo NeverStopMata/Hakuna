@@ -7,6 +7,7 @@
 #include <array>
 #include <chrono>
 #include <climits>
+#include "vk_swapchain.h"
 #include "vertex.h"
 #define M_PI 3.1415926
 using namespace std;
@@ -26,6 +27,7 @@ const bool enableValidationLayers = true;
 #endif
 
 
+
 class VulkanUtility {
 
 public:
@@ -42,7 +44,7 @@ public:
 
 	struct VulkanContex {
 		VkInstance vk_instance;
-		VkSurfaceKHR surface;
+		//VkSurfaceKHR surface;
 		VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 		//The logical device should be destroyed in cleanup with the vkDestroyDevice function:
 		VkDevice logical_device;
@@ -55,14 +57,10 @@ public:
 		vector<VkCommandBuffer> commandBuffers;//with the size of swapChain image count.
 		VkSampleCountFlagBits msaasample_size;
 
-		VkSwapchainKHR swapchain;
 		VkPipelineCache pipeline_cache;
-		vector<VkImage> swapchain_images;
-		vector<VkImageView> swapchain_image_views;
-		vector<VkFramebuffer> swapchain_framebuffers;//with the size of swapChain image count.
-		VkFormat swapchain_image_format;
-		VkExtent2D swapchain_extent;
 
+		VKSwapchain swapchain;
+		vector<VkFramebuffer> swapchain_framebuffers;//with the size of swapChain image count.
 		VkRenderPass renderpass;
 		VkPipelineLayout pipeline_layout;
 
@@ -94,9 +92,6 @@ public:
 	static bool HasStencilComponent(VkFormat format) {
 		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 	}
-
-
-
 
 	static void BeginSingleTimeCommands(const VulkanContex& vk_contex, uint32_t queueFamilyIndex, VkCommandBuffer& commandBuffer) {
 		VkCommandPool commandPool;
@@ -589,11 +584,11 @@ public:
 		}
 	}
 
-	static void CreateSurface(VulkanContex& vk_contex, GLFWwindow* windows) {
-		if (glfwCreateWindowSurface(vk_contex.vk_instance, windows, nullptr, &(vk_contex.surface)) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create window surface!");
-		}
-	}
+	//static void CreateSurface(VulkanContex& vk_contex, GLFWwindow* windows) {
+	//	if (glfwCreateWindowSurface(vk_contex.vk_instance, windows, nullptr, &(vk_contex.surface)) != VK_SUCCESS) {
+	//		throw std::runtime_error("failed to create window surface!");
+	//	}
+	//}
 
 	static void CreateLogicalDevice(VulkanContex& vk_contex)
 	{
@@ -704,11 +699,11 @@ public:
 	}
 
 	static bool IsDeviceSuitable(VkPhysicalDevice physical_device, VulkanContex& vk_contex) {
-		VulkanUtility::QueueFamilyIndices indices = FindQueueFamilies(physical_device, vk_contex.surface);
+		VulkanUtility::QueueFamilyIndices indices = FindQueueFamilies(physical_device, vk_contex.swapchain.surface_);
 		bool extensionsSupported = CheckDeviceExtensionsSupport(physical_device);
 		bool swapChainAdequate = false;
 		if (extensionsSupported) {
-			SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physical_device, vk_contex.surface);
+			SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physical_device, vk_contex.swapchain.surface_);
 			swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 		}
 		bool ret = indices.IsComplete() && extensionsSupported&& swapChainAdequate;
@@ -755,132 +750,6 @@ public:
 		}
 	}
 
-	//Each VkSurfaceFormatKHR entry contains a format and a colorSpace member.The format member specifies the color channels and types.
-	static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
-	{
-		/*The best case scenario is that the surface has no preferred format, which Vulkan
-			indicates by only returning one VkSurfaceFormatKHR entry which has its format
-			member set to VK_FORMAT_UNDEFINED*/
-		if (availableFormats.size() == 1 && availableFormats[0].format == VK_FORMAT_UNDEFINED) {
-			return { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
-		}
-		/*If we¡¯re not free to choose any format, then we¡¯ll go through the list and see if
-			the preferred combination is available :*/
-		for (const auto& availableFormat : availableFormats) {
-			if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-				return availableFormat;
-			}
-		}
-		//If that also fails then we just pick the first one
-		return availableFormats[0];
-	}
-
-	static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes,bool is_vsync) {
-		VkPresentModeKHR bestMode = VK_PRESENT_MODE_FIFO_KHR;
-		if (!is_vsync)
-		{
-			for (const auto& availablePresentMode : availablePresentModes) {
-				if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-					return availablePresentMode;
-				}
-				else if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
-					bestMode = availablePresentMode;
-				}
-			}
-		}
-		return bestMode;
-	}
-
-	//Choose the best revolution of swap chain
-	//Vulkan tells us to match the resolution of the window by setting
-	//the width and height in the currentExtent member.However, some window
-	//managers do allow us to differ here and this is indicated by setting the width and
-	//height in currentExtent to a special value : the maximum value of uint32_t.
-	static VkExtent2D ChooseSwapExtent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities) {
-		if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
-			return capabilities.currentExtent;
-		}
-		else {
-			int width, height;
-			glfwGetFramebufferSize(window, &width, &height);
-
-			VkExtent2D actualExtent = {
-				static_cast<uint32_t>(width),
-				static_cast<uint32_t>(height)
-			};
-			actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
-			actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
-			return actualExtent;
-		}
-	}
-
-	static void CreateSwapChain(VulkanContex& vk_contex, GLFWwindow* window, bool is_sync) {
-		VulkanUtility::SwapChainSupportDetails swapChainSupport = VulkanUtility::QuerySwapChainSupport(vk_contex.physical_device, vk_contex.surface);
-		VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
-		VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes, is_sync);
-		VkExtent2D extent = ChooseSwapExtent(window, swapChainSupport.capabilities);
-
-		uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-		if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
-			imageCount = swapChainSupport.capabilities.maxImageCount;
-		}
-
-		VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
-		swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-		swapchainCreateInfo.surface = vk_contex.surface;
-
-		swapchainCreateInfo.minImageCount = imageCount;
-		swapchainCreateInfo.imageFormat = surfaceFormat.format;
-		swapchainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
-		swapchainCreateInfo.imageExtent = extent;
-		//The imageArrayLayers specifies the amount of layers each image consists of.
-		//	This is always 1 unless you are developing a stereoscopic 3D application
-		swapchainCreateInfo.imageArrayLayers = 1;
-		swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-		uint32_t needQueueFamilyIndices[] = {
-			static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily),
-			static_cast<uint32_t>(vk_contex.queue_family_indices.presentFamily) };
-
-		if (vk_contex.queue_family_indices.graphicsFamily != vk_contex.queue_family_indices.presentFamily) {
-			swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-			swapchainCreateInfo.queueFamilyIndexCount = 2;
-			swapchainCreateInfo.pQueueFamilyIndices = needQueueFamilyIndices;
-		}
-		else {
-			swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		}
-		/*To specify that you do not want
-			any transformation, simply specify the current transformation.*/
-		swapchainCreateInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-		//You¡¯ll almost always want to
-		//	simply ignore the alpha channel, hence VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR.
-		swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-		swapchainCreateInfo.presentMode = presentMode;
-		swapchainCreateInfo.clipped = VK_TRUE;
-
-		swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
-
-		if (vkCreateSwapchainKHR(vk_contex.logical_device, &swapchainCreateInfo, nullptr, &vk_contex.swapchain) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create swap chain!");
-		}
-
-		vkGetSwapchainImagesKHR(vk_contex.logical_device, vk_contex.swapchain, &imageCount, nullptr);
-		vk_contex.swapchain_images.resize(imageCount);
-		vkGetSwapchainImagesKHR(vk_contex.logical_device, vk_contex.swapchain, &imageCount, vk_contex.swapchain_images.data());
-
-		vk_contex.swapchain_image_format = surfaceFormat.format;
-		vk_contex.swapchain_extent = extent;
-	}
-
-
-	static void CreateImageViewsForSwapChain(VulkanContex& vk_contex) {
-
-		vk_contex.swapchain_image_views.resize(vk_contex.swapchain_images.size());
-		for (size_t i = 0; i < vk_contex.swapchain_images.size(); i++) {
-			VulkanUtility::CreateImageView(vk_contex, vk_contex.swapchain_images[i], vk_contex.swapchain_image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_IMAGE_VIEW_TYPE_2D,&vk_contex.swapchain_image_views[i]);
-		}
-	}
 	static VkFormat FindSupportedFormat(const VulkanContex& vk_contex, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
 		for (VkFormat format : candidates) {
 			VkFormatProperties props;
@@ -905,7 +774,7 @@ public:
 	}
 	static void CreateRenderPass(VulkanContex& vk_contex) {
 		VkAttachmentDescription colorAttachment = {};
-		colorAttachment.format = vk_contex.swapchain_image_format;
+		colorAttachment.format = vk_contex.swapchain.colorFormat_;
 		colorAttachment.samples = vk_contex.msaasample_size;
 		/*The loadOp and storeOp apply to color and depth data, and stencilLoadOp / stencilStoreOp apply to stencil data.*/
 		/*The loadOp and storeOp determine what to do with the data in the attachment before rendering and after rendering*/
@@ -936,7 +805,7 @@ public:
 		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		VkAttachmentDescription colorAttachmentResolve = {};
-		colorAttachmentResolve.format = vk_contex.swapchain_image_format;
+		colorAttachmentResolve.format = vk_contex.swapchain.colorFormat_;
 		colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
 		colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -990,14 +859,14 @@ public:
 	static void CreateDescriptorPool(VulkanContex& vk_contex) {
 		std::array<VkDescriptorPoolSize, 2> poolSizes = {};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = static_cast<uint32_t>(vk_contex.swapchain_images.size() * 6);
+		poolSizes[0].descriptorCount = static_cast<uint32_t>(vk_contex.swapchain.imageCount_ * 6);
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSizes[1].descriptorCount = static_cast<uint32_t>(vk_contex.swapchain_images.size() * 16);
+		poolSizes[1].descriptorCount = static_cast<uint32_t>(vk_contex.swapchain.imageCount_ * 16);
 		VkDescriptorPoolCreateInfo poolInfo = {};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 		poolInfo.pPoolSizes = poolSizes.data();
-		poolInfo.maxSets = static_cast<uint32_t>(vk_contex.swapchain_images.size() * 2);
+		poolInfo.maxSets = static_cast<uint32_t>(vk_contex.swapchain.imageCount_ * 2);
 		if (vkCreateDescriptorPool(vk_contex.logical_device, &poolInfo, nullptr, &vk_contex.descriptor_pool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor pool!");
 		}
@@ -1092,11 +961,11 @@ public:
 	}
 
 	static void CreateColorResources(VulkanContex& vk_contex) {
-		VkFormat colorFormat = vk_contex.swapchain_image_format;
+		VkFormat colorFormat = vk_contex.swapchain.colorFormat_;
 		VulkanUtility::CreateImage(
 			vk_contex,
-			vk_contex.swapchain_extent.width,
-			vk_contex.swapchain_extent.height,
+			vk_contex.swapchain.extent_.width,
+			vk_contex.swapchain.extent_.height,
 			1,
 			false,
 			vk_contex.msaasample_size,
@@ -1115,8 +984,8 @@ public:
 		VkFormat depthFormat = FindDepthFormat(vk_contex);
 		VulkanUtility::CreateImage(
 			vk_contex,
-			vk_contex.swapchain_extent.width,
-			vk_contex.swapchain_extent.height,
+			vk_contex.swapchain.extent_.width,
+			vk_contex.swapchain.extent_.height,
 			1,
 			false,
 			vk_contex.msaasample_size,
@@ -1132,15 +1001,15 @@ public:
 	}
 
 	static void CreateFramebuffers(VulkanContex& vk_contex) {
-		vk_contex.swapchain_framebuffers.resize(vk_contex.swapchain_image_views.size());
-		for (size_t i = 0; i < vk_contex.swapchain_image_views.size(); i++) {
+		vk_contex.swapchain_framebuffers.resize(vk_contex.swapchain.imageCount_);
+		for (size_t i = 0; i < vk_contex.swapchain.imageCount_; i++) {
 			std::array<VkImageView, 3> attachments = {
 				/*The color attachment differs for every swap chain image,
 				but the same depth image can be used by all of them
 				because only a single subpass is running at the same time due to our semaphores.*/
 							vk_contex.color_image_view,
 							vk_contex.depth_image_view,
-							vk_contex.swapchain_image_views[i]
+							vk_contex.swapchain.buffers_[i].view
 			};
 
 			VkFramebufferCreateInfo framebufferInfo = {};
@@ -1148,8 +1017,8 @@ public:
 			framebufferInfo.renderPass = vk_contex.renderpass;
 			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
 			framebufferInfo.pAttachments = attachments.data();
-			framebufferInfo.width = vk_contex.swapchain_extent.width;
-			framebufferInfo.height = vk_contex.swapchain_extent.height;
+			framebufferInfo.width = vk_contex.swapchain.extent_.width;
+			framebufferInfo.height = vk_contex.swapchain.extent_.height;
 			framebufferInfo.layers = 1;
 
 			if (vkCreateFramebuffer(vk_contex.logical_device, &framebufferInfo, nullptr, &vk_contex.swapchain_framebuffers[i]) != VK_SUCCESS) {
@@ -1158,7 +1027,7 @@ public:
 		}
 	}
 
-	static void CleanupSwapChain(VulkanContex& vk_contex, vector<VkCommandBuffer>& commandBuffers) {
+	static void CleanupFramebufferAndPipeline(VulkanContex& vk_contex, vector<VkCommandBuffer>& commandBuffers) {
 		for (size_t i = 0; i < vk_contex.swapchain_framebuffers.size(); i++) {
 			vkDestroyFramebuffer(vk_contex.logical_device, vk_contex.swapchain_framebuffers[i], nullptr);
 		}
@@ -1174,10 +1043,6 @@ public:
 		vkDestroyRenderPass(vk_contex.logical_device, vk_contex.renderpass, nullptr);
 		vkDestroyPipeline(vk_contex.logical_device, vk_contex.pipeline_struct.opaque_pipeline, nullptr);
 		vkDestroyPipeline(vk_contex.logical_device, vk_contex.pipeline_struct.skybox_pipeline, nullptr);
-		for (size_t i = 0; i < vk_contex.swapchain_image_views.size(); i++) {
-			vkDestroyImageView(vk_contex.logical_device, vk_contex.swapchain_image_views[i], nullptr);
-		}
-		vkDestroySwapchainKHR(vk_contex.logical_device, vk_contex.swapchain, nullptr);
 	}
 	
 };
