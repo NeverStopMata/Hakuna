@@ -7,8 +7,10 @@
 #include <array>
 #include <chrono>
 #include <climits>
-#include "vk_swapchain.h"
+#include "vulkan_swapchain.h"
+#include "vulkan_device.h"
 #include "vertex.h"
+#include "gli/gli.hpp"
 #define M_PI 3.1415926
 using namespace std;
 const int MAX_FRAMES_IN_FLIGHT = 2;
@@ -31,35 +33,12 @@ const bool enableValidationLayers = true;
 class VulkanUtility {
 
 public:
-	struct QueueFamilyIndices {
-		int graphicsFamily = -1;//绘制需要
-		int presentFamily = -1; //需要将画面输出到屏幕
-		int transferFamily = -1;
-		bool IsComplete() {
-			return graphicsFamily >= 0 &&
-				presentFamily >= 0 &&
-				transferFamily >= 0;
-		}
-	};//表示物理设备所支持的且需要的queue families的index.
-
 	struct VulkanContex {
 		VkInstance vk_instance;
-		//VkSurfaceKHR surface;
-		VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-		//The logical device should be destroyed in cleanup with the vkDestroyDevice function:
-		VkDevice logical_device;
-		VkQueue graphics_queue;
-		VkQueue present_queue;
-		VkQueue transfer_queue;
-		QueueFamilyIndices queue_family_indices;
-		VkCommandPool transfer_command_pool;
-		VkCommandPool graphic_command_pool;
 		vector<VkCommandBuffer> commandBuffers;//with the size of swapChain image count.
-		VkSampleCountFlagBits msaasample_size;
-
 		VkPipelineCache pipeline_cache;
-
-		VKSwapchain swapchain;
+		VulkanDevice vulkan_device;
+		VulkanSwapchain vulkan_swapchain;
 		vector<VkFramebuffer> swapchain_framebuffers;//with the size of swapChain image count.
 		VkRenderPass renderpass;
 		VkPipelineLayout pipeline_layout;
@@ -81,117 +60,43 @@ public:
 		}pipeline_struct;
 	};
 
-	struct SwapChainSupportDetails {
-		VkSurfaceCapabilitiesKHR capabilities;//Basic surface capabilities (min/max number of images in swap chain,	min / max width and height of images)
-		vector<VkSurfaceFormatKHR> formats;//Surface formats (pixel format, color space)
-		vector<VkPresentModeKHR> presentModes;
-	};
-
 public:
 
 	static bool HasStencilComponent(VkFormat format) {
 		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 	}
 
-	static void BeginSingleTimeCommands(const VulkanContex& vk_contex, uint32_t queueFamilyIndex, VkCommandBuffer& commandBuffer) {
-		VkCommandPool commandPool;
-		if (queueFamilyIndex == vk_contex.queue_family_indices.transferFamily) {
-			commandPool = vk_contex.transfer_command_pool;
-		}
-		else if (queueFamilyIndex == vk_contex.queue_family_indices.graphicsFamily) {
-			commandPool = vk_contex.graphic_command_pool;
-		}
-		else {
-			throw std::invalid_argument("invalid queueFamilyIndex!");
-		}
-		VkCommandBufferAllocateInfo allocInfo = {};
-		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandPool = commandPool;
-		allocInfo.commandBufferCount = 1;
-
-		//VkCommandBuffer commandBuffer;
-		vkAllocateCommandBuffers(vk_contex.logical_device, &allocInfo, &commandBuffer);
-
-		VkCommandBufferBeginInfo beginInfo = {};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-		vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-		//return commandBuffer;
-	}
-
-	static void EndSingleTimeCommands(const VulkanContex& vk_contex, VkCommandBuffer commandBuffer, uint32_t queueFamilyIndex) {
-		VkCommandPool commandPool;
-		VkQueue queue;
-		if (queueFamilyIndex == vk_contex.queue_family_indices.transferFamily) {
-			commandPool = vk_contex.transfer_command_pool;
-			queue = vk_contex.transfer_queue;
-		}
-		else if (queueFamilyIndex == vk_contex.queue_family_indices.graphicsFamily) {
-			commandPool = vk_contex.graphic_command_pool;
-			queue = vk_contex.graphics_queue;
-		}
-		else {
-			throw std::invalid_argument("invalid queueFamilyIndex!");
-		}
-		vkEndCommandBuffer(commandBuffer);
-		VkSubmitInfo submitInfo = {};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &commandBuffer;
-		vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-		vkQueueWaitIdle(queue);
-		//vkQueueWaitIdle(queue);//EMMMMMMM
-		vkFreeCommandBuffers(vk_contex.logical_device, commandPool, 1, &commandBuffer);
-	}
-
-	static void CopyBufferToImage(const VulkanContex& vk_contex, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
+	static void CopyBufferToImage(const VulkanContex& vk_contex, VkBuffer buffer, VkImage image, const gli::texture2d& src_tex_2d) {
 		VkCommandBuffer commandBuffer;
-		BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily), commandBuffer);
-		VkBufferImageCopy region = {};
-		region.bufferOffset = 0;
-		region.bufferRowLength = 0;
-		region.bufferImageHeight = 0;
-
-		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		region.imageSubresource.mipLevel = 0;
-		region.imageSubresource.baseArrayLayer = 0;
-		region.imageSubresource.layerCount = 1;
-
-		region.imageOffset = { 0, 0, 0 };
-		region.imageExtent = {
-			width,
-			height,
-			1
-		};
+		vk_contex.vulkan_device.BeginSingleTimeCommands(static_cast<uint32_t>(vk_contex.vulkan_device.queue_family_indices.transferFamily), commandBuffer);
+		std::vector<VkBufferImageCopy> copyRegions;
+		uint32_t offset = 0;
+		for (uint32_t i = 0; i < src_tex_2d.levels(); i++)
+		{
+			VkBufferImageCopy bufferCopyRegion = {};
+			bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			bufferCopyRegion.imageSubresource.mipLevel = i;
+			bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+			bufferCopyRegion.imageSubresource.layerCount = 1;
+			bufferCopyRegion.imageExtent.width = static_cast<uint32_t>(src_tex_2d[i].extent().x);
+			bufferCopyRegion.imageExtent.height = static_cast<uint32_t>(src_tex_2d[i].extent().y);
+			bufferCopyRegion.imageExtent.depth = 1;
+			bufferCopyRegion.bufferOffset = offset;
+			copyRegions.push_back(bufferCopyRegion);
+			offset += static_cast<uint32_t>(src_tex_2d[i].size());
+		}
 		vkCmdCopyBufferToImage(
 			commandBuffer,
 			buffer,
 			image,
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			1,
-			&region
+			copyRegions.size(),
+			copyRegions.data()
 		);
-		EndSingleTimeCommands(vk_contex, commandBuffer, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily));
+		vk_contex.vulkan_device.EndSingleTimeCommands(commandBuffer, static_cast<uint32_t>(vk_contex.vulkan_device.queue_family_indices.transferFamily));
 	}
 
-	//static VkPipelineShaderStageCreateInfo LoadShader(const VulkanContex& vk_contex,std::string fileName, VkShaderStageFlagBits stage)
-	//{
-	//	VkPipelineShaderStageCreateInfo shaderStage = {};
-	//	auto vertShaderCode = ShaderManager::ReadShaderFile(fileName);
-	//	VkShaderModule vertShaderModule = VulkanUtility::CreateShaderModule(vk_contex, vertShaderCode);
-	//	shaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	//	shaderStage.stage = stage;
-	//	shaderStage.module = vertShaderModule;
-	//	shaderStage.pName = "main";
-	//	vkDestroyShaderModule(vk_contex.logical_device, vertShaderModule, nullptr);
-	//	return shaderStage;
-	//}
-	
-
-	static void setImageLayout(
+	static void SetImageLayout(
 		VkCommandBuffer cmdbuffer,
 		VkImage image,
 		VkFormat format,
@@ -283,17 +188,16 @@ public:
 		uint32_t layer_cnt = 1, 
 		VkImageAspectFlagBits imageAspect = VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT) {
 		VkCommandBuffer commandBuffer;
-		BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily), commandBuffer);
+		vk_contex.vulkan_device.BeginSingleTimeCommands(static_cast<uint32_t>(vk_contex.vulkan_device.queue_family_indices.graphicsFamily), commandBuffer);
 
 		VkImageSubresourceRange subresourceRange = {};
 		subresourceRange.aspectMask = imageAspect;
 		subresourceRange.baseMipLevel = 0;
 		subresourceRange.levelCount = mipLevels;
 		subresourceRange.layerCount = layer_cnt;
-		setImageLayout(commandBuffer, image, format, oldLayout, newLayout, subresourceRange);
-		EndSingleTimeCommands(vk_contex, commandBuffer, static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily));
+		SetImageLayout(commandBuffer, image, format, oldLayout, newLayout, subresourceRange);
+		vk_contex.vulkan_device.EndSingleTimeCommands(commandBuffer, static_cast<uint32_t>(vk_contex.vulkan_device.queue_family_indices.graphicsFamily));
 	}
-
 
 	static void CreateTextureSampler(const VulkanUtility::VulkanContex& vk_contex,uint32_t numMips,VkSampler* result_sampler) {
 		VkSamplerCreateInfo samplerInfo = {};
@@ -306,7 +210,7 @@ public:
 		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		VkPhysicalDeviceFeatures supportedFeatures;
-		vkGetPhysicalDeviceFeatures(vk_contex.physical_device, &supportedFeatures);
+		vkGetPhysicalDeviceFeatures(vk_contex.vulkan_device.physical_device, &supportedFeatures);
 		samplerInfo.anisotropyEnable = supportedFeatures.samplerAnisotropy;
 		// The maxAnisotropy field limits the amount of texel samples that can be used to calculate the final color. 
 		samplerInfo.maxAnisotropy = supportedFeatures.samplerAnisotropy == VK_TRUE ? 16 : 1;
@@ -315,7 +219,7 @@ public:
 		samplerInfo.compareOp = VK_COMPARE_OP_NEVER;
 		samplerInfo.minLod = 0.0f;
 		samplerInfo.maxLod = static_cast<float>(numMips);
-		if (vkCreateSampler(vk_contex.logical_device, &samplerInfo, nullptr, result_sampler) != VK_SUCCESS) {
+		if (vkCreateSampler(vk_contex.vulkan_device.logical_device, &samplerInfo, nullptr, result_sampler) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create texture sampler!");
 		}
 	}
@@ -333,20 +237,9 @@ public:
 		viewInfo.subresourceRange.layerCount = view_image_type == VkImageViewType::VK_IMAGE_VIEW_TYPE_CUBE ? 6 : 1;
 
 		VkImageView imageView;
-		if (vkCreateImageView(vk_contex.logical_device, &viewInfo, nullptr, imageViewPtr) != VK_SUCCESS) {
+		if (vkCreateImageView(vk_contex.vulkan_device.logical_device, &viewInfo, nullptr, imageViewPtr) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create texture image view!");
 		}
-	}
-
-	static uint32_t FindMemoryType(VkPhysicalDevice physical_device, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-		VkPhysicalDeviceMemoryProperties memProperties;
-		vkGetPhysicalDeviceMemoryProperties(physical_device, &memProperties);
-		for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-			if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-				return i;
-			}
-		}
-		return -1;
 	}
 
 	static void CreateImage(
@@ -377,23 +270,23 @@ public:
 		imageCI.samples = numSamples;
 		imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		imageCI.flags = bIsCubemap ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
-		if (vkCreateImage(vk_contex.logical_device, &imageCI, nullptr, &image) != VK_SUCCESS) {
+		if (vkCreateImage(vk_contex.vulkan_device.logical_device, &imageCI, nullptr, &image) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create image!");
 		}
 
 		VkMemoryRequirements memRequirements;
-		vkGetImageMemoryRequirements(vk_contex.logical_device, image, &memRequirements);
+		vkGetImageMemoryRequirements(vk_contex.vulkan_device.logical_device, image, &memRequirements);
 
 		VkMemoryAllocateInfo allocInfo = {};
 		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = FindMemoryType(vk_contex.physical_device, memRequirements.memoryTypeBits, properties);
+		allocInfo.memoryTypeIndex = vk_contex.vulkan_device.GetMemoryType(memRequirements.memoryTypeBits, properties);
 
-		if (vkAllocateMemory(vk_contex.logical_device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
+		if (vkAllocateMemory(vk_contex.vulkan_device.logical_device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate image memory!");
 		}
 
-		vkBindImageMemory(vk_contex.logical_device, image, imageMemory, 0);
+		vkBindImageMemory(vk_contex.vulkan_device.logical_device, image, imageMemory, 0);
 	}
 
 
@@ -401,12 +294,12 @@ public:
 	static void GenerateMipmaps(const VulkanContex& vk_contex, VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) {
 
 		VkFormatProperties formatProperties;
-		vkGetPhysicalDeviceFormatProperties(vk_contex.physical_device, imageFormat, &formatProperties);
+		vkGetPhysicalDeviceFormatProperties(vk_contex.vulkan_device.physical_device, imageFormat, &formatProperties);
 		if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
 			throw std::runtime_error("texture image format does not support linear blitting!");
 		}
 		VkCommandBuffer commandBuffer;
-		BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily), commandBuffer);
+		vk_contex.vulkan_device.BeginSingleTimeCommands(static_cast<uint32_t>(vk_contex.vulkan_device.queue_family_indices.graphicsFamily), commandBuffer);
 
 		VkImageMemoryBarrier barrier = {};
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -480,8 +373,10 @@ public:
 			0, nullptr,
 			1, &barrier);
 
-		EndSingleTimeCommands(vk_contex, commandBuffer, static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily));
+		vk_contex.vulkan_device.EndSingleTimeCommands(commandBuffer, static_cast<uint32_t>(vk_contex.vulkan_device.queue_family_indices.graphicsFamily));
 	}
+
+
 
 	static void CreateBuffer(
 		const VulkanContex& vk_contex,
@@ -505,22 +400,22 @@ public:
 			bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		}
 
-		if (vkCreateBuffer(vk_contex.logical_device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
+		if (vkCreateBuffer(vk_contex.vulkan_device.logical_device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create buffer!");
 		}
 
 		VkMemoryRequirements memRequirements;
-		vkGetBufferMemoryRequirements(vk_contex.logical_device, buffer, &memRequirements);
+		vkGetBufferMemoryRequirements(vk_contex.vulkan_device.logical_device, buffer, &memRequirements);
 
 		VkMemoryAllocateInfo allocInfo = {};
 		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = FindMemoryType(vk_contex.physical_device, memRequirements.memoryTypeBits, properties);
+		allocInfo.memoryTypeIndex = vk_contex.vulkan_device.GetMemoryType(memRequirements.memoryTypeBits, properties);
 
-		if (vkAllocateMemory(vk_contex.logical_device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
+		if (vkAllocateMemory(vk_contex.vulkan_device.logical_device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate buffer memory!");
 		}
-		vkBindBufferMemory(vk_contex.logical_device, buffer, bufferMemory, 0);
+		vkBindBufferMemory(vk_contex.vulkan_device.logical_device, buffer, bufferMemory, 0);
 	}
 
 	static bool CheckValidationLayerSupport() {
@@ -584,176 +479,10 @@ public:
 		}
 	}
 
-	//static void CreateSurface(VulkanContex& vk_contex, GLFWwindow* windows) {
-	//	if (glfwCreateWindowSurface(vk_contex.vk_instance, windows, nullptr, &(vk_contex.surface)) != VK_SUCCESS) {
-	//		throw std::runtime_error("failed to create window surface!");
-	//	}
-	//}
-
-	static void CreateLogicalDevice(VulkanContex& vk_contex)
-	{
-		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-
-		//If the queue families are the same, then we only need to pass its index once.
-		std::set<int> uniqueQueueFamilies = { vk_contex.queue_family_indices.graphicsFamily, vk_contex.queue_family_indices.presentFamily,vk_contex.queue_family_indices.transferFamily };
-		float queuePriority = 1.0f;
-		for (int queueFamily : uniqueQueueFamilies) {
-			VkDeviceQueueCreateInfo queueCreateInfo = {};
-			queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-			queueCreateInfo.queueFamilyIndex = queueFamily;
-			queueCreateInfo.queueCount = 1;
-			queueCreateInfo.pQueuePriorities = &queuePriority;
-			queueCreateInfos.push_back(queueCreateInfo);
-		}
-		VkPhysicalDeviceFeatures deviceFeatures = {};//no need for any specific feature
-		VkPhysicalDeviceFeatures supportedFeatures;
-		vkGetPhysicalDeviceFeatures(vk_contex.physical_device, &supportedFeatures);
-		deviceFeatures.samplerAnisotropy = supportedFeatures.samplerAnisotropy;
-		deviceFeatures.sampleRateShading = VK_TRUE; // enable sample shading feature for the device
-		VkDeviceCreateInfo deviceCreateInfo = {};
-		deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-		deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
-		deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
-		deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-		deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
-		if (enableValidationLayers) {
-			deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-			deviceCreateInfo.ppEnabledLayerNames = validationLayers.data();
-		}
-		else {
-			deviceCreateInfo.enabledLayerCount = 0;
-		}
-		if (vkCreateDevice(vk_contex.physical_device, &deviceCreateInfo, nullptr, &vk_contex.logical_device) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create logical device!");
-		}
-		vkGetDeviceQueue(vk_contex.logical_device, static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily), 0, &vk_contex.graphics_queue);
-		vkGetDeviceQueue(vk_contex.logical_device, static_cast<uint32_t>(vk_contex.queue_family_indices.presentFamily), 0, &vk_contex.present_queue);
-		vkGetDeviceQueue(vk_contex.logical_device, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily), 0, &vk_contex.transfer_queue);
-	}
-
-	static bool CheckDeviceExtensionsSupport(VkPhysicalDevice device) {
-		uint32_t extensionCount;
-		vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-		std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-		vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-		std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-		for (const auto& extension : availableExtensions) {
-			requiredExtensions.erase(extension.extensionName);
-		}
-		return requiredExtensions.empty();
-	}
-
-	static QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice physical_device, VkSurfaceKHR surface) {
-		QueueFamilyIndices indices;
-		uint32_t queueFamilyCount = 0;
-		vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queueFamilyCount, nullptr);
-		std::vector<VkQueueFamilyProperties> queueFamilies;
-		if (queueFamilyCount != 0) {
-			queueFamilies.resize(queueFamilyCount);
-			vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queueFamilyCount, queueFamilies.data());
-		}
-		int i = 0;
-		for (const auto& queueFamily : queueFamilies) {
-			//find the queue family that surpports Graphic cmd
-			if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-				indices.graphicsFamily = i;
-			}
-			//find the queue family that surpports presentation(render to a rt)
-			VkBool32 presentSupport = false;
-			vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &presentSupport);
-			if (queueFamily.queueCount > 0 && presentSupport) {
-				indices.presentFamily = i;
-			}
-
-			if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT && !(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
-				indices.transferFamily = i;
-			}
-			if (indices.IsComplete()) {
-				break;
-			}
-			i++;
-		}
-		//std::cout << indices.graphicsFamily << " " << indices.transferFamily << " " << indices.presentFamily << std::endl;;
-
-		return indices;
-	}
-
-	static SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice physical_device, VkSurfaceKHR surface) {
-		SwapChainSupportDetails details;
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &details.capabilities);
-		uint32_t formatCount;
-		vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &formatCount, nullptr);
-		if (formatCount != 0) {
-			details.formats.resize(formatCount);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &formatCount, details.formats.data());
-		}
-
-		uint32_t presentModeCount;
-		vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &presentModeCount, nullptr);
-		if (presentModeCount != 0) {
-			details.presentModes.resize(presentModeCount);
-			vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &presentModeCount, details.presentModes.data());
-		}
-		return details;
-	}
-
-	static bool IsDeviceSuitable(VkPhysicalDevice physical_device, VulkanContex& vk_contex) {
-		VulkanUtility::QueueFamilyIndices indices = FindQueueFamilies(physical_device, vk_contex.swapchain.surface_);
-		bool extensionsSupported = CheckDeviceExtensionsSupport(physical_device);
-		bool swapChainAdequate = false;
-		if (extensionsSupported) {
-			SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physical_device, vk_contex.swapchain.surface_);
-			swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
-		}
-		bool ret = indices.IsComplete() && extensionsSupported&& swapChainAdequate;
-		if (ret == true) {
-			vk_contex.queue_family_indices = indices;
-		}
-
-
-		return indices.IsComplete() && extensionsSupported&& swapChainAdequate;
-	}
-
-	static VkSampleCountFlagBits GetMaxUsableSampleCount(const VulkanContex& vk_contex) {
-		VkPhysicalDeviceProperties physicalDeviceProperties;
-		vkGetPhysicalDeviceProperties(vk_contex.physical_device, &physicalDeviceProperties);
-
-		VkSampleCountFlags counts = std::min(physicalDeviceProperties.limits.framebufferColorSampleCounts, physicalDeviceProperties.limits.framebufferDepthSampleCounts);
-		if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
-		if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
-		if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
-		if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
-		if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
-		if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
-
-		return VK_SAMPLE_COUNT_1_BIT;
-	}
-
-	static void PickPhysicalDevice(VulkanContex& vk_contex) {
-		uint32_t deviceCount = 0;
-		vkEnumeratePhysicalDevices(vk_contex.vk_instance, &deviceCount, nullptr);
-		if (deviceCount == 0) {
-			throw std::runtime_error("failed to find GPUs with Vulkansupport!");
-		}
-		std::vector<VkPhysicalDevice> physical_devices(deviceCount);
-		vkEnumeratePhysicalDevices(vk_contex.vk_instance, &deviceCount, physical_devices.data());
-		for (const auto& physical_device : physical_devices) {
-			if (IsDeviceSuitable(physical_device, vk_contex)) {
-				vk_contex.physical_device = physical_device;
-				vk_contex.msaasample_size = GetMaxUsableSampleCount(vk_contex);
-				break;
-			}
-		}
-		if (vk_contex.physical_device == VK_NULL_HANDLE) {
-			throw std::runtime_error("failed to find a suitable CPU!");
-		}
-	}
-
 	static VkFormat FindSupportedFormat(const VulkanContex& vk_contex, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
 		for (VkFormat format : candidates) {
 			VkFormatProperties props;
-			vkGetPhysicalDeviceFormatProperties(vk_contex.physical_device, format, &props);
+			vkGetPhysicalDeviceFormatProperties(vk_contex.vulkan_device.physical_device, format, &props);
 
 			if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
 				return format;
@@ -774,8 +503,8 @@ public:
 	}
 	static void CreateRenderPass(VulkanContex& vk_contex) {
 		VkAttachmentDescription colorAttachment = {};
-		colorAttachment.format = vk_contex.swapchain.colorFormat_;
-		colorAttachment.samples = vk_contex.msaasample_size;
+		colorAttachment.format = vk_contex.vulkan_swapchain.colorFormat_;
+		colorAttachment.samples = vk_contex.vulkan_device.msaasample_size;
 		/*The loadOp and storeOp apply to color and depth data, and stencilLoadOp / stencilStoreOp apply to stencil data.*/
 		/*The loadOp and storeOp determine what to do with the data in the attachment before rendering and after rendering*/
 		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -792,7 +521,7 @@ public:
 
 		VkAttachmentDescription depthAttachment = {};
 		depthAttachment.format = FindDepthFormat(vk_contex);
-		depthAttachment.samples = vk_contex.msaasample_size;
+		depthAttachment.samples = vk_contex.vulkan_device.msaasample_size;
 		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -805,7 +534,7 @@ public:
 		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		VkAttachmentDescription colorAttachmentResolve = {};
-		colorAttachmentResolve.format = vk_contex.swapchain.colorFormat_;
+		colorAttachmentResolve.format = vk_contex.vulkan_swapchain.colorFormat_;
 		colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
 		colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -842,32 +571,32 @@ public:
 		renderPassInfo.pSubpasses = &subpass;
 		renderPassInfo.dependencyCount = 1;
 		renderPassInfo.pDependencies = &dependency;
-		if (vkCreateRenderPass(vk_contex.logical_device, &renderPassInfo, nullptr, &vk_contex.renderpass) != VK_SUCCESS) {
+		if (vkCreateRenderPass(vk_contex.vulkan_device.logical_device, &renderPassInfo, nullptr, &vk_contex.renderpass) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create render pass!");
 		}
 	}
 
 	static void CopyBuffer(const VulkanContex& vk_contex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
 		VkCommandBuffer commandBuffer;
-		BeginSingleTimeCommands(vk_contex, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily), commandBuffer);
+		vk_contex.vulkan_device.BeginSingleTimeCommands(static_cast<uint32_t>(vk_contex.vulkan_device.queue_family_indices.transferFamily), commandBuffer);
 		VkBufferCopy copyRegion = {};
 		copyRegion.size = size;
 		vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-		EndSingleTimeCommands(vk_contex, commandBuffer, static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily));
+		vk_contex.vulkan_device.EndSingleTimeCommands(commandBuffer, static_cast<uint32_t>(vk_contex.vulkan_device.queue_family_indices.transferFamily));
 	}
 
 	static void CreateDescriptorPool(VulkanContex& vk_contex) {
 		std::array<VkDescriptorPoolSize, 2> poolSizes = {};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = static_cast<uint32_t>(vk_contex.swapchain.imageCount_ * 6);
+		poolSizes[0].descriptorCount = static_cast<uint32_t>(vk_contex.vulkan_swapchain.imageCount_ * 6);
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSizes[1].descriptorCount = static_cast<uint32_t>(vk_contex.swapchain.imageCount_ * 16);
+		poolSizes[1].descriptorCount = static_cast<uint32_t>(vk_contex.vulkan_swapchain.imageCount_ * 16);
 		VkDescriptorPoolCreateInfo poolInfo = {};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 		poolInfo.pPoolSizes = poolSizes.data();
-		poolInfo.maxSets = static_cast<uint32_t>(vk_contex.swapchain.imageCount_ * 2);
-		if (vkCreateDescriptorPool(vk_contex.logical_device, &poolInfo, nullptr, &vk_contex.descriptor_pool) != VK_SUCCESS) {
+		poolInfo.maxSets = static_cast<uint32_t>(vk_contex.vulkan_swapchain.imageCount_ * 2);
+		if (vkCreateDescriptorPool(vk_contex.vulkan_device.logical_device, &poolInfo, nullptr, &vk_contex.descriptor_pool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor pool!");
 		}
 	}
@@ -923,7 +652,7 @@ public:
 		layoutInfo.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
 		layoutInfo.pBindings = set_layout_bindings.data();
 
-		if (vkCreateDescriptorSetLayout(vk_contex.logical_device, &layoutInfo, nullptr, &vk_contex.descriptor_set_layout) != VK_SUCCESS) {
+		if (vkCreateDescriptorSetLayout(vk_contex.vulkan_device.logical_device, &layoutInfo, nullptr, &vk_contex.descriptor_set_layout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor set layout!");
 		}
 	}
@@ -934,41 +663,21 @@ public:
 		shaderModuleCreateInfo.codeSize = code.size();
 		shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 		VkShaderModule shaderModule;
-		if (vkCreateShaderModule(vk_contex.logical_device, &shaderModuleCreateInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+		if (vkCreateShaderModule(vk_contex.vulkan_device.logical_device, &shaderModuleCreateInfo, nullptr, &shaderModule) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create shader module!");
 		}
 		return shaderModule;
 	}
 
-
-
-	static void CreateCommandPools(VulkanContex& vk_contex) {
-		VkCommandPoolCreateInfo graphicPoolInfo = {};
-		graphicPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		graphicPoolInfo.queueFamilyIndex = static_cast<uint32_t>(vk_contex.queue_family_indices.graphicsFamily);
-		graphicPoolInfo.flags = 0; // Optional
-		if (vkCreateCommandPool(vk_contex.logical_device, &graphicPoolInfo, nullptr, &vk_contex.graphic_command_pool) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create graphic command pool!");
-		}
-
-		VkCommandPoolCreateInfo transferPoolInfo = {};
-		transferPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		transferPoolInfo.queueFamilyIndex = static_cast<uint32_t>(vk_contex.queue_family_indices.transferFamily);
-		transferPoolInfo.flags = 0; // Optional
-		if (vkCreateCommandPool(vk_contex.logical_device, &transferPoolInfo, nullptr, &vk_contex.transfer_command_pool) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create transfer command pool!");
-		}
-	}
-
 	static void CreateColorResources(VulkanContex& vk_contex) {
-		VkFormat colorFormat = vk_contex.swapchain.colorFormat_;
+		VkFormat colorFormat = vk_contex.vulkan_swapchain.colorFormat_;
 		VulkanUtility::CreateImage(
 			vk_contex,
-			vk_contex.swapchain.extent_.width,
-			vk_contex.swapchain.extent_.height,
+			vk_contex.vulkan_swapchain.extent_.width,
+			vk_contex.vulkan_swapchain.extent_.height,
 			1,
 			false,
-			vk_contex.msaasample_size,
+			vk_contex.vulkan_device.msaasample_size,
 			colorFormat,
 			VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
@@ -984,11 +693,11 @@ public:
 		VkFormat depthFormat = FindDepthFormat(vk_contex);
 		VulkanUtility::CreateImage(
 			vk_contex,
-			vk_contex.swapchain.extent_.width,
-			vk_contex.swapchain.extent_.height,
+			vk_contex.vulkan_swapchain.extent_.width,
+			vk_contex.vulkan_swapchain.extent_.height,
 			1,
 			false,
-			vk_contex.msaasample_size,
+			vk_contex.vulkan_device.msaasample_size,
 			depthFormat,
 			VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
@@ -1001,15 +710,15 @@ public:
 	}
 
 	static void CreateFramebuffers(VulkanContex& vk_contex) {
-		vk_contex.swapchain_framebuffers.resize(vk_contex.swapchain.imageCount_);
-		for (size_t i = 0; i < vk_contex.swapchain.imageCount_; i++) {
+		vk_contex.swapchain_framebuffers.resize(vk_contex.vulkan_swapchain.imageCount_);
+		for (size_t i = 0; i < vk_contex.vulkan_swapchain.imageCount_; i++) {
 			std::array<VkImageView, 3> attachments = {
 				/*The color attachment differs for every swap chain image,
 				but the same depth image can be used by all of them
 				because only a single subpass is running at the same time due to our semaphores.*/
 							vk_contex.color_image_view,
 							vk_contex.depth_image_view,
-							vk_contex.swapchain.buffers_[i].view
+							vk_contex.vulkan_swapchain.buffers_[i].view
 			};
 
 			VkFramebufferCreateInfo framebufferInfo = {};
@@ -1017,11 +726,11 @@ public:
 			framebufferInfo.renderPass = vk_contex.renderpass;
 			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
 			framebufferInfo.pAttachments = attachments.data();
-			framebufferInfo.width = vk_contex.swapchain.extent_.width;
-			framebufferInfo.height = vk_contex.swapchain.extent_.height;
+			framebufferInfo.width = vk_contex.vulkan_swapchain.extent_.width;
+			framebufferInfo.height = vk_contex.vulkan_swapchain.extent_.height;
 			framebufferInfo.layers = 1;
 
-			if (vkCreateFramebuffer(vk_contex.logical_device, &framebufferInfo, nullptr, &vk_contex.swapchain_framebuffers[i]) != VK_SUCCESS) {
+			if (vkCreateFramebuffer(vk_contex.vulkan_device.logical_device, &framebufferInfo, nullptr, &vk_contex.swapchain_framebuffers[i]) != VK_SUCCESS) {
 				throw std::runtime_error("failed to create framebuffer!");
 			}
 		}
@@ -1029,20 +738,20 @@ public:
 
 	static void CleanupFramebufferAndPipeline(VulkanContex& vk_contex, vector<VkCommandBuffer>& commandBuffers) {
 		for (size_t i = 0; i < vk_contex.swapchain_framebuffers.size(); i++) {
-			vkDestroyFramebuffer(vk_contex.logical_device, vk_contex.swapchain_framebuffers[i], nullptr);
+			vkDestroyFramebuffer(vk_contex.vulkan_device.logical_device, vk_contex.swapchain_framebuffers[i], nullptr);
 		}
-		vkDestroyImageView(vk_contex.logical_device, vk_contex.color_image_view, nullptr);
-		vkDestroyImage(vk_contex.logical_device, vk_contex.color_image, nullptr);
-		vkFreeMemory(vk_contex.logical_device, vk_contex.color_image_memory, nullptr);
-		vkDestroyImageView(vk_contex.logical_device, vk_contex.depth_image_view, nullptr);
-		vkDestroyImage(vk_contex.logical_device, vk_contex.depth_image, nullptr);
-		vkFreeMemory(vk_contex.logical_device, vk_contex.depth_image_memory, nullptr);
+		vkDestroyImageView(vk_contex.vulkan_device.logical_device, vk_contex.color_image_view, nullptr);
+		vkDestroyImage(vk_contex.vulkan_device.logical_device, vk_contex.color_image, nullptr);
+		vkFreeMemory(vk_contex.vulkan_device.logical_device, vk_contex.color_image_memory, nullptr);
+		vkDestroyImageView(vk_contex.vulkan_device.logical_device, vk_contex.depth_image_view, nullptr);
+		vkDestroyImage(vk_contex.vulkan_device.logical_device, vk_contex.depth_image, nullptr);
+		vkFreeMemory(vk_contex.vulkan_device.logical_device, vk_contex.depth_image_memory, nullptr);
 		/* This way we can reuse the existing pool to allocate the new command buffers*/
-		vkFreeCommandBuffers(vk_contex.logical_device, vk_contex.graphic_command_pool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
-		vkDestroyPipelineLayout(vk_contex.logical_device, vk_contex.pipeline_layout, nullptr);
-		vkDestroyRenderPass(vk_contex.logical_device, vk_contex.renderpass, nullptr);
-		vkDestroyPipeline(vk_contex.logical_device, vk_contex.pipeline_struct.opaque_pipeline, nullptr);
-		vkDestroyPipeline(vk_contex.logical_device, vk_contex.pipeline_struct.skybox_pipeline, nullptr);
+		vkFreeCommandBuffers(vk_contex.vulkan_device.logical_device, vk_contex.vulkan_device.graphic_command_pool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+		vkDestroyPipelineLayout(vk_contex.vulkan_device.logical_device, vk_contex.pipeline_layout, nullptr);
+		vkDestroyRenderPass(vk_contex.vulkan_device.logical_device, vk_contex.renderpass, nullptr);
+		vkDestroyPipeline(vk_contex.vulkan_device.logical_device, vk_contex.pipeline_struct.opaque_pipeline, nullptr);
+		vkDestroyPipeline(vk_contex.vulkan_device.logical_device, vk_contex.pipeline_struct.skybox_pipeline, nullptr);
 	}
 	
 };

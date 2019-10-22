@@ -10,10 +10,10 @@ ShaderManager::ShaderManager()
 ShaderManager::~ShaderManager()
 {
 }
-void ShaderManager::CleanShaderModules(const VulkanUtility::VulkanContex& contex) {
+void ShaderManager::CleanShaderModules(const VulkanUtility::VulkanContex& vk_contex) {
 	for (auto& shaderModule : shader_modules_)
 	{
-		vkDestroyShaderModule(contex.logical_device, shaderModule, nullptr);
+		vkDestroyShaderModule(vk_contex.vulkan_device.logical_device, shaderModule, nullptr);
 	}
 }
 std::vector<char> ShaderManager::ReadShaderFile(const std::string& filename) {

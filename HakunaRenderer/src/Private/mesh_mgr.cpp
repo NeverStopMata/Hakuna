@@ -126,10 +126,8 @@ void MeshMgr::CalculateTangents(std::array<Vertex, 3>& vertices) {
 
 void MeshMgr::CleanUpMeshDict() {
 	for (auto kv : mesh_dict_) {
-		vkDestroyBuffer(vk_context_ptr_->logical_device, kv.second->vertex_buffer_, nullptr);
-		vkFreeMemory(vk_context_ptr_->logical_device, kv.second->vertex_buffer_memory_, nullptr);
-		vkDestroyBuffer(vk_context_ptr_->logical_device, kv.second->index_buffer_, nullptr);
-		vkFreeMemory(vk_context_ptr_->logical_device, kv.second->index_buffer_memory_, nullptr);
+		kv.second->vertex_buffer_.destroy();
+		kv.second->index_buffer_.destroy();
 		kv.second->vertices_.clear();
 		kv.second->vertices_.shrink_to_fit();
 		kv.second->indices_.clear();

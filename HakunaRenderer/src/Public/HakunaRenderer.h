@@ -23,6 +23,7 @@
 #include "mesh_mgr.h"
 #include "math.h"
 #include "input_mgr.h"
+#include "VulkanBuffer.hpp"
 using namespace std;
 
 
@@ -78,23 +79,23 @@ private:
 
 	vector<VkCommandBuffer> command_buffers_;//with the size of swapChain image count.
 
-	struct MVPBufferSturct {
-		VkBuffer mvp_buffer;
-		VkDeviceMemory mvp_buffer_memory;
-	};
-	vector<MVPBufferSturct> mvp_ubos_;
+	//struct MVPBufferSturct {
+	//	VkBuffer mvp_buffer;
+	//	VkDeviceMemory mvp_buffer_memory;
+	//};
+	vector<VulkanBuffer> mvp_ubos_;
 
-	struct DrctLightBufferSturct {
-		VkBuffer directional_light_buffer;
-		VkDeviceMemory directional_light_buffer_memory;
-	};
-	vector<DrctLightBufferSturct> directional_light_ubos_;
+	//struct DrctLightBufferSturct {
+	//	VkBuffer directional_light_buffer;
+	//	VkDeviceMemory directional_light_buffer_memory;
+	//};
+	vector<VulkanBuffer> directional_light_ubos_;
 
-	struct ParamsBufferSturct {
-		VkBuffer params_buffer;
-		VkDeviceMemory params_buffer_memory;
-	};
-	vector<ParamsBufferSturct> params_ubos_;
+	//struct ParamsBufferSturct {
+	//	VkBuffer params_buffer;
+	//	VkDeviceMemory params_buffer_memory;
+	//};
+	vector<VulkanBuffer> params_ubos_;
 
 	vector<string> material_tex_names_ = { 
 		"basecolor", 
@@ -129,7 +130,7 @@ public:
 		InitWindow();
 		input_mgr_.Init(window_);
 		InitVulkan();
-		Camera temp_cam(60.f, vk_contex_.swapchain.extent_.width / (float)vk_contex_.swapchain.extent_.height, 100.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
+		Camera temp_cam(60.f, vk_contex_.vulkan_swapchain.extent_.width / (float)vk_contex_.vulkan_swapchain.extent_.height, 100.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
 		cam_ = temp_cam;
 		cam_.SetupCameraContrl(input_mgr_);
 	}
@@ -161,7 +162,7 @@ public:
 			}	
 #endif
 		}
-		vkDeviceWaitIdle(vk_contex_.logical_device);
+		vkDeviceWaitIdle(vk_contex_.vulkan_device.logical_device);
 	}
 
 private:

@@ -63,9 +63,6 @@
     <ClInclude Include="src\Public\VulkanTools.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\Public\vk_swapchain.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\Public\VulkanglTFModel.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -76,6 +73,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Public\VulkanBuffer.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\vulkan_swapchain.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\vulkan_device.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -125,7 +128,10 @@
     <ClCompile Include="src\Private\VulkanTools.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\Private\vk_swapchain.cpp">
+    <ClCompile Include="src\Private\vulkan_swapchain.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Private\vulkan_device.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -201,12 +201,24 @@ namespace VKInitializers
 
 	inline VkBufferCreateInfo bufferCreateInfo(
 		VkBufferUsageFlags usage,
-		VkDeviceSize size)
+		VkDeviceSize size,
+		int sharingQueueFamilyCount = 1,
+		const uint32_t* psharingQueueFamilyIndices = nullptr)
 	{
 		VkBufferCreateInfo bufCreateInfo{};
 		bufCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		bufCreateInfo.usage = usage;
 		bufCreateInfo.size = size;
+		if (sharingQueueFamilyCount > 1)
+		{
+			bufCreateInfo.sharingMode = VkSharingMode::VK_SHARING_MODE_CONCURRENT;
+			bufCreateInfo.queueFamilyIndexCount = sharingQueueFamilyCount;
+			bufCreateInfo.pQueueFamilyIndices = psharingQueueFamilyIndices;
+		}
+		else
+		{
+			bufCreateInfo.sharingMode = VkSharingMode::VK_SHARING_MODE_EXCLUSIVE;
+		}
 		return bufCreateInfo;
 	}
 

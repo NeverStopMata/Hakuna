@@ -6,7 +6,6 @@
 #include "vulkan/vulkan.h"
 #include <gli/gli.hpp>
 using namespace std;
-
 class Texture
 {
 public:
@@ -23,16 +22,16 @@ public:
 
 	void CleanUp()
 	{
-		vkDestroySampler(vk_contex_ptr_->logical_device, texture_sampler_, nullptr);
-		vkDestroyImageView(vk_contex_ptr_->logical_device, texture_image_view_, nullptr);
-		vkDestroyImage(vk_contex_ptr_->logical_device, texture_image_, nullptr);
-		vkFreeMemory(vk_contex_ptr_->logical_device, texture_image_memory_, nullptr);
+		vkDestroySampler(vk_contex_ptr_->vulkan_device.logical_device, texture_sampler_, nullptr);
+		vkDestroyImageView(vk_contex_ptr_->vulkan_device.logical_device, texture_image_view_, nullptr);
+		vkDestroyImage(vk_contex_ptr_->vulkan_device.logical_device, texture_image_, nullptr);
+		vkFreeMemory(vk_contex_ptr_->vulkan_device.logical_device, texture_image_memory_, nullptr);
 	}
 	~Texture() {
 	}
 	Texture(const VulkanUtility::VulkanContex* vk_contex_ptr):vk_contex_ptr_(vk_contex_ptr) {}
-	std::shared_ptr<Texture> LoadTexture2D(VkFormat format, string file_path);
-	std::shared_ptr<Texture> LoadTextureCube(VkFormat format, string file_path);
+	std::shared_ptr<Texture> LoadTexture2D(string file_path);
+	std::shared_ptr<Texture> LoadTextureCube(string file_path);
 
 };
 

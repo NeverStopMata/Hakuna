@@ -15,9 +15,8 @@
 #include <vector>
 
 #include "vulkan/vulkan.h"
-#include "VulkanDevice.hpp"
-#include "vulkan_utility.h"
-
+#include "VulkanBuffer.hpp"
+#include "vulkan_device.h"
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -59,10 +58,10 @@ namespace vkglTF
 
 		void destroy()
 		{
-			vkDestroyImageView(device->logicalDevice, view, nullptr);
-			vkDestroyImage(device->logicalDevice, image, nullptr);
-			vkFreeMemory(device->logicalDevice, deviceMemory, nullptr);
-			vkDestroySampler(device->logicalDevice, sampler, nullptr);
+			vkDestroyImageView(device->logical_device, view, nullptr);
+			vkDestroyImage(device->logical_device, image, nullptr);
+			vkFreeMemory(device->logical_device, deviceMemory, nullptr);
+			vkDestroySampler(device->logical_device, sampler, nullptr);
 		}
 
 		/*
@@ -103,9 +102,9 @@ namespace vkglTF
 
 			width = gltfimage.width;
 			height = gltfimage.height;
-			mipLevels = static_cast<uint32_t>(floor(log2(std::max(width, height))) + 1.0);
+			mipLevels = static_cast<uint32_t>(floor(std::log2(std::max(width, height))) + 1.0);
 
-			vkGetPhysicalDeviceFormatProperties(device->physicalDevice, format, &formatProperties);
+			vkGetPhysicalDeviceFormatProperties(device->physical_device, format, &formatProperties);
 			assert(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT);
 			assert(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT);
 
@@ -121,17 +120,17 @@ namespace vkglTF
 			bufferCreateInfo.size = bufferSize;
 			bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 			bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-			VK_CHECK_RESULT(vkCreateBuffer(device->logicalDevice, &bufferCreateInfo, nullptr, &stagingBuffer));
-			vkGetBufferMemoryRequirements(device->logicalDevice, stagingBuffer, &memReqs);
+			VK_CHECK_RESULT(vkCreateBuffer(device->logical_device, &bufferCreateInfo, nullptr, &stagingBuffer));
+			vkGetBufferMemoryRequirements(device->logical_device, stagingBuffer, &memReqs);
 			memAllocInfo.allocationSize = memReqs.size;
-			memAllocInfo.memoryTypeIndex = device->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-			VK_CHECK_RESULT(vkAllocateMemory(device->logicalDevice, &memAllocInfo, nullptr, &stagingMemory));
-			VK_CHECK_RESULT(vkBindBufferMemory(device->logicalDevice, stagingBuffer, stagingMemory, 0));
+			memAllocInfo.memoryTypeIndex = device->GetMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+			VK_CHECK_RESULT(vkAllocateMemory(device->logical_device, &memAllocInfo, nullptr, &stagingMemory));
+			VK_CHECK_RESULT(vkBindBufferMemory(device->logical_device, stagingBuffer, stagingMemory, 0));
 
 			uint8_t *data;
-			VK_CHECK_RESULT(vkMapMemory(device->logicalDevice, stagingMemory, 0, memReqs.size, 0, (void **)&data));
+			VK_CHECK_RESULT(vkMapMemory(device->logical_device, stagingMemory, 0, memReqs.size, 0, (void **)&data));
 			memcpy(data, buffer, bufferSize);
-			vkUnmapMemory(device->logicalDevice, stagingMemory);
+			vkUnmapMemory(device->logical_device, stagingMemory);
 
 			VkImageCreateInfo imageCreateInfo{};
 			imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -146,14 +145,15 @@ namespace vkglTF
 			imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			imageCreateInfo.extent = { width, height, 1 };
 			imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-			VK_CHECK_RESULT(vkCreateImage(device->logicalDevice, &imageCreateInfo, nullptr, &image));
-			vkGetImageMemoryRequirements(device->logicalDevice, image, &memReqs);
+			VK_CHECK_RESULT(vkCreateImage(device->logical_device, &imageCreateInfo, nullptr, &image));
+			vkGetImageMemoryRequirements(device->logical_device, image, &memReqs);
 			memAllocInfo.allocationSize = memReqs.size;
-			memAllocInfo.memoryTypeIndex = device->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-			VK_CHECK_RESULT(vkAllocateMemory(device->logicalDevice, &memAllocInfo, nullptr, &deviceMemory));
-			VK_CHECK_RESULT(vkBindImageMemory(device->logicalDevice, image, deviceMemory, 0));
+			memAllocInfo.memoryTypeIndex = device->GetMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+			VK_CHECK_RESULT(vkAllocateMemory(device->logical_device, &memAllocInfo, nullptr, &deviceMemory));
+			VK_CHECK_RESULT(vkBindImageMemory(device->logical_device, image, deviceMemory, 0));
 
-			VkCommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+			VkCommandBuffer copyCmd;
+			device->BeginSingleTimeCommands(device->queue_family_indices.graphicsFamily, copyCmd);
 
 			VkImageSubresourceRange subresourceRange = {};
 			subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -182,7 +182,6 @@ namespace vkglTF
 			bufferCopyRegion.imageExtent.depth = 1;
 
 			vkCmdCopyBufferToImage(copyCmd, stagingBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferCopyRegion);
-
 			{
 				VkImageMemoryBarrier imageMemoryBarrier{};
 				imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -195,13 +194,14 @@ namespace vkglTF
 				vkCmdPipelineBarrier(copyCmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 			}
 
-			device->flushCommandBuffer(copyCmd, copyQueue, true);
+			device->EndSingleTimeCommands(copyCmd, device->queue_family_indices.graphicsFamily);
 
-			vkFreeMemory(device->logicalDevice, stagingMemory, nullptr);
-			vkDestroyBuffer(device->logicalDevice, stagingBuffer, nullptr);
+			vkFreeMemory(device->logical_device, stagingMemory, nullptr);
+			vkDestroyBuffer(device->logical_device, stagingBuffer, nullptr);
 
 			// Generate the mip chain (glTF uses jpg and png, so we need to create this manually)
-			VkCommandBuffer blitCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+			VkCommandBuffer blitCmd;
+			device->BeginSingleTimeCommands(device->queue_family_indices.graphicsFamily, blitCmd);// (VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 			for (uint32_t i = 1; i < mipLevels; i++) {
 				VkImageBlit imageBlit{};
 
@@ -267,7 +267,7 @@ namespace vkglTF
 				vkCmdPipelineBarrier(blitCmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 			}
 
-			device->flushCommandBuffer(blitCmd, copyQueue, true);
+			device->EndSingleTimeCommands(blitCmd,device->queue_family_indices.graphicsFamily);
 
 			VkSamplerCreateInfo samplerInfo{};
 			samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -284,7 +284,7 @@ namespace vkglTF
 			samplerInfo.maxLod = (float)mipLevels;
 			samplerInfo.maxAnisotropy = 8.0f;
 			samplerInfo.anisotropyEnable = VK_TRUE;
-			VK_CHECK_RESULT(vkCreateSampler(device->logicalDevice, &samplerInfo, nullptr, &sampler));
+			VK_CHECK_RESULT(vkCreateSampler(device->logical_device, &samplerInfo, nullptr, &sampler));
 
 			VkImageViewCreateInfo viewInfo{};
 			viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -295,7 +295,7 @@ namespace vkglTF
 			viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			viewInfo.subresourceRange.layerCount = 1;
 			viewInfo.subresourceRange.levelCount = mipLevels;
-			VK_CHECK_RESULT(vkCreateImageView(device->logicalDevice, &viewInfo, nullptr, &view));
+			VK_CHECK_RESULT(vkCreateImageView(device->logical_device, &viewInfo, nullptr, &view));
 
 			descriptor.sampler = sampler;
 			descriptor.imageView = view;
@@ -363,11 +363,11 @@ namespace vkglTF
 		std::string name;
 
 		struct UniformBuffer {
-			VkBuffer buffer;
-			VkDeviceMemory memory;
+			VulkanBuffer vulkan_buffer;
+	/*		VkBuffer buffer;
+			VkDeviceMemory memory;*/
 			VkDescriptorBufferInfo descriptor;
 			VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-			void *mapped;
 		} uniformBuffer;
 
 		struct UniformBlock {
@@ -379,20 +379,18 @@ namespace vkglTF
 		Mesh(VulkanDevice *device, glm::mat4 matrix) {
 			this->device = device;
 			this->uniformBlock.matrix = matrix;
-			VK_CHECK_RESULT(device->createBuffer(
+			VK_CHECK_RESULT(device->CreateBuffer(
 				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-				sizeof(uniformBlock),
-				&uniformBuffer.buffer,
-				&uniformBuffer.memory,
-				&uniformBlock));
-			VK_CHECK_RESULT(vkMapMemory(device->logicalDevice, uniformBuffer.memory, 0, sizeof(uniformBlock), 0, &uniformBuffer.mapped));
-			uniformBuffer.descriptor = { uniformBuffer.buffer, 0, sizeof(uniformBlock) };
+				&uniformBuffer.vulkan_buffer,
+				sizeof(uniformBlock))
+			);
+			uniformBuffer.vulkan_buffer.map(sizeof(uniformBlock));
+			uniformBuffer.descriptor = { uniformBuffer.vulkan_buffer.buffer, 0, sizeof(uniformBlock) };
 		};
 
 		~Mesh() {
-			vkDestroyBuffer(device->logicalDevice, uniformBuffer.buffer, nullptr);
-			vkFreeMemory(device->logicalDevice, uniformBuffer.memory, nullptr);
+			uniformBuffer.vulkan_buffer.destroy();
 		}
 
 	};
@@ -451,9 +449,9 @@ namespace vkglTF
 						mesh->uniformBlock.jointMatrix[i] = jointMat;
 					}
 					mesh->uniformBlock.jointcount = (float)skin->joints.size();
-					memcpy(mesh->uniformBuffer.mapped, &mesh->uniformBlock, sizeof(mesh->uniformBlock));
+					memcpy(mesh->uniformBuffer.vulkan_buffer.mapped, &mesh->uniformBlock, sizeof(mesh->uniformBlock));
 				} else {
-					memcpy(mesh->uniformBuffer.mapped, &m, sizeof(glm::mat4));
+					memcpy(mesh->uniformBuffer.vulkan_buffer.mapped, &m, sizeof(glm::mat4));
 				}
 			}
 
@@ -519,16 +517,16 @@ namespace vkglTF
 			glm::vec4 joint0;
 			glm::vec4 weight0;
 		};
-
-		struct Vertices {
-			VkBuffer buffer;
-			VkDeviceMemory memory;
-		} vertices;
-		struct Indices {
-			int count;
-			VkBuffer buffer;
-			VkDeviceMemory memory;
-		} indices;
+		VulkanBuffer vertices, indices;
+		///*struct Vertices {
+		//	VkBuffer buffer;
+		//	VkDeviceMemory memory;
+		//} vertices;*/
+		//struct Indices {
+		//	int count;
+		//	VkBuffer buffer;
+		//	VkDeviceMemory memory;
+		//} indices;
 
 		std::vector<Node*> nodes;
 		std::vector<Node*> linearNodes;
@@ -553,18 +551,18 @@ namespace vkglTF
 
 		~Model() 
 		{
-			vkDestroyBuffer(device->logicalDevice, vertices.buffer, nullptr);
-			vkFreeMemory(device->logicalDevice, vertices.memory, nullptr);
-			vkDestroyBuffer(device->logicalDevice, indices.buffer, nullptr);
-			vkFreeMemory(device->logicalDevice, indices.memory, nullptr);
+			vkDestroyBuffer(device->logical_device, vertices.buffer, nullptr);
+			vkFreeMemory(device->logical_device, vertices.memory, nullptr);
+			vkDestroyBuffer(device->logical_device, indices.buffer, nullptr);
+			vkFreeMemory(device->logical_device, indices.memory, nullptr);
 			for (auto texture : textures) {
 				texture.destroy();
 			}
 			for (auto node : nodes) {
 				delete node;
 			}
-			vkDestroyDescriptorSetLayout(device->logicalDevice, descriptorSetLayout, nullptr);
-			vkDestroyDescriptorPool(device->logicalDevice, descriptorPool, nullptr);
+			vkDestroyDescriptorSetLayout(device->logical_device, descriptorSetLayout, nullptr);
+			vkDestroyDescriptorPool(device->logical_device, descriptorPool, nullptr);
 		}
 
 		void loadNode(vkglTF::Node *parent, const tinygltf::Node &node, uint32_t nodeIndex, const tinygltf::Model &model, std::vector<uint32_t>& indexBuffer, std::vector<Vertex>& vertexBuffer, float globalscale)
@@ -993,66 +991,52 @@ namespace vkglTF
 
 			size_t vertexBufferSize = vertexBuffer.size() * sizeof(Vertex);
 			size_t indexBufferSize = indexBuffer.size() * sizeof(uint32_t);
-			indices.count = static_cast<uint32_t>(indexBuffer.size());
+			//indices.count = static_cast<uint32_t>(indexBuffer.size());
 
 			assert((vertexBufferSize > 0) && (indexBufferSize > 0));
 
-			struct StagingBuffer {
-				VkBuffer buffer;
-				VkDeviceMemory memory;
-			} vertexStaging, indexStaging;
+			VulkanBuffer vertexStaging, indexStaging;
 
 			// Create staging buffers
 			// Vertex data
-			VK_CHECK_RESULT(device->createBuffer(
+			VK_CHECK_RESULT(device->CreateBuffer(
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				&vertexStaging,
 				vertexBufferSize,
-				&vertexStaging.buffer,
-				&vertexStaging.memory,
+				1,
+				nullptr,
 				vertexBuffer.data()));
 			// Index data
-			VK_CHECK_RESULT(device->createBuffer(
+			VK_CHECK_RESULT(device->CreateBuffer(
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-				indexBufferSize,
-				&indexStaging.buffer,
-				&indexStaging.memory,
+				&vertexStaging,
+				vertexBufferSize,
+				1,
+				nullptr,
 				indexBuffer.data()));
 
 			// Create device local buffers
 			// Vertex buffer
-			VK_CHECK_RESULT(device->createBuffer(
+			VK_CHECK_RESULT(device->CreateBuffer(
 				VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-				vertexBufferSize,
-				&vertices.buffer,
-				&vertices.memory));
+				&vertices,
+				vertexBufferSize
+			));
 			// Index buffer
-			VK_CHECK_RESULT(device->createBuffer(
+			VK_CHECK_RESULT(device->CreateBuffer(
 				VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-				indexBufferSize,
-				&indices.buffer,
-				&indices.memory));
-
-			// Copy from staging buffers
-			VkCommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-
-			VkBufferCopy copyRegion = {};
-
-			copyRegion.size = vertexBufferSize;
-			vkCmdCopyBuffer(copyCmd, vertexStaging.buffer, vertices.buffer, 1, &copyRegion);
-
-			copyRegion.size = indexBufferSize;
-			vkCmdCopyBuffer(copyCmd, indexStaging.buffer, indices.buffer, 1, &copyRegion);
-
-			device->flushCommandBuffer(copyCmd, transferQueue, true);
-
-			vkDestroyBuffer(device->logicalDevice, vertexStaging.buffer, nullptr);
-			vkFreeMemory(device->logicalDevice, vertexStaging.memory, nullptr);
-			vkDestroyBuffer(device->logicalDevice, indexStaging.buffer, nullptr);
-			vkFreeMemory(device->logicalDevice, indexStaging.memory, nullptr);
+				&indices,
+				indexBufferSize
+			));
+			device->CopyBuffer(vertexStaging.buffer, vertices.buffer, vertexBufferSize);
+			device->CopyBuffer(indexStaging.buffer, indices.buffer, indexBufferSize);
+			
+			vertexStaging.destroy();
+			indexStaging.destroy();
 
 			getSceneDimensions();
 
@@ -1067,7 +1051,7 @@ namespace vkglTF
 				VKInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uboCount),
 			};
 			VkDescriptorPoolCreateInfo descriptorPoolCI = VKInitializers::descriptorPoolCreateInfo(static_cast<uint32_t>(poolSizes.size()), poolSizes.data(), uboCount);
-			VK_CHECK_RESULT(vkCreateDescriptorPool(device->logicalDevice, &descriptorPoolCI, nullptr, &descriptorPool));
+			VK_CHECK_RESULT(vkCreateDescriptorPool(device->logical_device, &descriptorPoolCI, nullptr, &descriptorPool));
 
 			std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
 				VKInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0),
@@ -1076,7 +1060,7 @@ namespace vkglTF
 			descriptorLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 			descriptorLayoutCI.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
 			descriptorLayoutCI.pBindings = setLayoutBindings.data();
-			VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device->logicalDevice, &descriptorLayoutCI, nullptr, &descriptorSetLayout));
+			VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device->logical_device, &descriptorLayoutCI, nullptr, &descriptorSetLayout));
 			for (auto node : nodes) {
 				prepareNodeDescriptor(node, descriptorSetLayout);
 			}
@@ -1227,7 +1211,7 @@ namespace vkglTF
 				descriptorSetAllocInfo.descriptorPool = descriptorPool;
 				descriptorSetAllocInfo.pSetLayouts = &descriptorSetLayout;
 				descriptorSetAllocInfo.descriptorSetCount = 1;
-				VK_CHECK_RESULT(vkAllocateDescriptorSets(device->logicalDevice, &descriptorSetAllocInfo, &node->mesh->uniformBuffer.descriptorSet));
+				VK_CHECK_RESULT(vkAllocateDescriptorSets(device->logical_device, &descriptorSetAllocInfo, &node->mesh->uniformBuffer.descriptorSet));
 
 				VkWriteDescriptorSet writeDescriptorSet{};
 				writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1237,7 +1221,7 @@ namespace vkglTF
 				writeDescriptorSet.dstBinding = 0;
 				writeDescriptorSet.pBufferInfo = &node->mesh->uniformBuffer.descriptor;
 
-				vkUpdateDescriptorSets(device->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
+				vkUpdateDescriptorSets(device->logical_device, 1, &writeDescriptorSet, 0, nullptr);
 			}
 			for (auto& child : node->children) {
 				prepareNodeDescriptor(child, descriptorSetLayout);
