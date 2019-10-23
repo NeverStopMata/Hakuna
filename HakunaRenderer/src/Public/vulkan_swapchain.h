@@ -10,12 +10,8 @@
 #include <algorithm>
 #include <vulkan/vulkan.h>
 #include "VulkanTools.h"
-class VulkanDevice;
-typedef struct _SwapChainSupportDetails {
-	VkSurfaceCapabilitiesKHR capabilities;//Basic surface capabilities (min/max number of images in swap chain,	min / max width and height of images)
-	std::vector<VkSurfaceFormatKHR> formats;//Surface formats (pixel format, color space)
-	std::vector<VkPresentModeKHR> presentModes;
-} SwapChainSupportDetails;
+#include "vulkan_device.h"
+
 
 typedef struct _SwapChainBuffers {
 	VkImage image;

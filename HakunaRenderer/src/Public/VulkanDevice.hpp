@@ -24,6 +24,8 @@ typedef struct _VulkanDevice
 	VkPhysicalDevice physicalDevice;
 	/** @brief Logical device representation (application's view of the device) */
 	VkDevice logicalDevice;
+
+	VkPipelineCache pipelineCache;
 	/** @brief Properties of the physical device including limits that the application can check against */
 	VkPhysicalDeviceProperties properties;
 	/** @brief Features of the physical device that an application can use to check if a feature is supported */
@@ -483,6 +485,8 @@ typedef struct _VulkanDevice
 		// Attach the memory to the buffer object
 		return buffer->bind();
 	}
+
+
 
 	/**
 	* Copy buffer data from src to dst using VkCmdCopyBuffer

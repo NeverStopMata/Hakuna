@@ -15,6 +15,7 @@
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 #include <iostream>
+
 #include "HakunaRenderer.h"
 #ifdef _DEBUG
 static _CrtMemState s1, s2, s3;

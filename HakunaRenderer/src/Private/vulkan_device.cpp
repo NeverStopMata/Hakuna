@@ -134,6 +134,46 @@ VkResult VulkanDevice::CreateBuffer(
 	return buffer->bind();
 }
 
+VkResult VulkanDevice::CreateBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, VkBuffer* buffer, VkDeviceMemory* memory, void* data)
+{
+	// Create the buffer handle
+	VkBufferCreateInfo bufferCreateInfo = VKInitializers::bufferCreateInfo(usageFlags, size);
+	bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	VK_CHECK_RESULT(vkCreateBuffer(logical_device, &bufferCreateInfo, nullptr, buffer));
+
+	// Create the memory backing up the buffer handle
+	VkMemoryRequirements memReqs;
+	VkMemoryAllocateInfo memAlloc = VKInitializers::memoryAllocateInfo();
+	vkGetBufferMemoryRequirements(logical_device, *buffer, &memReqs);
+	memAlloc.allocationSize = memReqs.size;
+	// Find a memory type index that fits the properties of the buffer
+	memAlloc.memoryTypeIndex = GetMemoryType(memReqs.memoryTypeBits, memoryPropertyFlags);
+	VK_CHECK_RESULT(vkAllocateMemory(logical_device, &memAlloc, nullptr, memory));
+
+	// If a pointer to the buffer data has been passed, map the buffer and copy over the data
+	if (data != nullptr)
+	{
+		void* mapped;
+		VK_CHECK_RESULT(vkMapMemory(logical_device, *memory, 0, size, 0, &mapped));
+		memcpy(mapped, data, size);
+		// If host coherency hasn't been requested, do a manual flush to make writes visible
+		if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0)
+		{
+			VkMappedMemoryRange mappedRange = VKInitializers::mappedMemoryRange();
+			mappedRange.memory = *memory;
+			mappedRange.offset = 0;
+			mappedRange.size = size;
+			vkFlushMappedMemoryRanges(logical_device, 1, &mappedRange);
+		}
+		vkUnmapMemory(logical_device, *memory);
+	}
+
+	// Attach the memory to the buffer object
+	VK_CHECK_RESULT(vkBindBufferMemory(logical_device, *buffer, *memory, 0));
+
+	return VK_SUCCESS;
+}
+
 bool VulkanDevice::IsDeviceSuitable(VkPhysicalDevice physical_device, VkSurfaceKHR surface)
 {
 	QueueFamilyIndices indices = GetQueueFamilies(physical_device, surface);

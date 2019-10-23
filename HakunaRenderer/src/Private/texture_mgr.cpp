@@ -1,12 +1,6 @@
 #include <iostream>
 #include "texture_mgr.h"
-TextureMgr::TextureMgr()
-{
-}
 
-TextureMgr::~TextureMgr()
-{
-}
 
 void TextureMgr::AddTexture(string tex_name, std::shared_ptr<Texture> tex_ptr)
 {

@@ -15,15 +15,20 @@ using namespace std;
 
 class MeshMgr
 {
-public:
+
+private:
+	MeshMgr() {}
+	~MeshMgr() {}
+	MeshMgr(const MeshMgr&);
+	MeshMgr& operator=(const MeshMgr&);
 	std::map<std::string, std::shared_ptr<Mesh>> mesh_dict_;
+	VulkanUtility::VulkanContex* vk_context_ptr_;
+public:
+	static MeshMgr& GetInstance();
 	//std::vector<Vertex> vertices_;
 	//std::vector<uint32_t> indices_;
 
-public:
-	MeshMgr();
 	void Init(VulkanUtility::VulkanContex* vk_context);
-	~MeshMgr();
 	void CalculateTangents(std::array<Vertex, 3>& vertices);
 	void CreateCubeMesh(std::string name, glm::vec3 scale);
 	void LoadModelFromFile(std::string model_path, std::string name, glm::vec3 scale = glm::vec3(1,1,1));
@@ -31,7 +36,5 @@ public:
 	//void CreateVertexBuffer(Mesh& mesh);
 	//void CreateIndexBuffer(Mesh& mesh);
 	shared_ptr<Mesh> GetMeshByName(string mesh_name);
-public:
-	VulkanUtility::VulkanContex* vk_context_ptr_;
 };
 

@@ -2,8 +2,13 @@
 #include <tiny_obj_loader.h>
 #include "mesh_mgr.h"
 
-MeshMgr::MeshMgr() {}
-MeshMgr::~MeshMgr(){}
+
+MeshMgr& MeshMgr::GetInstance()
+{	
+	static MeshMgr singleton;
+	return singleton;
+}
+
 void MeshMgr::Init(VulkanUtility::VulkanContex* vk_context) {
 	vk_context_ptr_ = vk_context;
 }

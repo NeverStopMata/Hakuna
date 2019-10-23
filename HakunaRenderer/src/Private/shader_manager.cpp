@@ -1,22 +1,11 @@
 #include "shader_manager.h"
-
-
-
-ShaderManager::ShaderManager()
-{
-}
-
-
-ShaderManager::~ShaderManager()
-{
-}
-void ShaderManager::CleanShaderModules(const VulkanUtility::VulkanContex& vk_contex) {
+void ShaderMgr::CleanShaderModules(const VulkanUtility::VulkanContex& vk_contex) {
 	for (auto& shaderModule : shader_modules_)
 	{
 		vkDestroyShaderModule(vk_contex.vulkan_device.logical_device, shaderModule, nullptr);
 	}
 }
-std::vector<char> ShaderManager::ReadShaderFile(const std::string& filename) {
+std::vector<char> ShaderMgr::ReadShaderFile(const std::string& filename) {
 	std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
 	if (!file.is_open()) {
@@ -30,10 +19,10 @@ std::vector<char> ShaderManager::ReadShaderFile(const std::string& filename) {
 	return buffer;
 }
 
-VkPipelineShaderStageCreateInfo ShaderManager::LoadShader(const VulkanUtility::VulkanContex& vk_contex, std::string fileName, VkShaderStageFlagBits stage)
+VkPipelineShaderStageCreateInfo ShaderMgr::LoadShader(const VulkanUtility::VulkanContex& vk_contex, std::string fileName, VkShaderStageFlagBits stage)
 {
 	VkPipelineShaderStageCreateInfo shaderStage = {};
-	auto vertShaderCode = ShaderManager::ReadShaderFile(fileName);
+	auto vertShaderCode = ShaderMgr::ReadShaderFile(fileName);
 	VkShaderModule vertShaderModule = VulkanUtility::CreateShaderModule(vk_contex, vertShaderCode);
 	shaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	shaderStage.stage = stage;
