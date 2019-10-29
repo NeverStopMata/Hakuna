@@ -10,6 +10,8 @@ void HakunaRenderer::InitVulkan()
 	vk_contex_.vulkan_swapchain.CreateSurface(window_, vk_contex_.vk_instance);
 	vk_contex_.vulkan_device.PickPhysicalDevice(vk_contex_.vk_instance, vk_contex_.vulkan_swapchain.surface_);
 	vk_contex_.vulkan_device.CreateLogicalDevice();
+
+	ShaderManager::GetInstance()->Init(vk_contex_.vulkan_device.logical_device);
 	vk_contex_.vulkan_swapchain.Connect(vk_contex_.vk_instance, vk_contex_.vulkan_device.physical_device, vk_contex_.vulkan_device.logical_device);
 	vk_contex_.vulkan_swapchain.CreateSwapchain(window_, vk_contex_.vulkan_device, false);
 	VulkanUtility::CreateRenderPass(vk_contex_);
@@ -23,20 +25,20 @@ void HakunaRenderer::InitVulkan()
 	VulkanUtility::CreateDescriptorPool(vk_contex_);
 	CreateUniformBuffers();
 
-	mesh_mgr_.Init(&vk_contex_);
-	mesh_mgr_.LoadModelFromFile("resource/models/gun.obj", "gun");// temp debug
+	MeshMgr::GetInstance()->Init(&vk_contex_);
+	MeshMgr::GetInstance()->LoadModelFromFile("resource/models/gun.obj", "gun");// temp debug
 
-	//mesh_mgr_.CreateCubeMesh("gun", glm::vec3(5, 0.1, 5));
-	mesh_mgr_.LoadModelFromFile("resource/models/sky.obj", "sky",glm::vec3(10,10,10));
-	texture_mgr_.AddTexture("sky_texcube", (new Texture(&vk_contex_))->LoadTextureCube("resource/textures/skybox_tex/hdr/gcanyon_cube.ktx"));
-	texture_mgr_.AddTexture("basecolor", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_basecolor.dds"));
-	texture_mgr_.AddTexture("metallic", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_metallic.dds"));
-	texture_mgr_.AddTexture("normal", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_normal.dds"));
-	texture_mgr_.AddTexture("occlusion", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_occlusion.dds"));
-	texture_mgr_.AddTexture("roughness", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_roughness.dds"));
-	texture_mgr_.AddTexture("env_irradiance_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_DIFFUSE));
-	texture_mgr_.AddTexture("env_specular_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_SPECULAR));
-	texture_mgr_.AddTexture("env_brdf_lut", GenerateBRDFLUT());
+	//MeshMgr::GetInstance()->CreateCubeMesh("gun", glm::vec3(5, 0.1, 5));
+	MeshMgr::GetInstance()->LoadModelFromFile("resource/models/sky.obj", "sky",glm::vec3(10,10,10));
+	TextureMgr::GetInstance()->AddTexture("sky_texcube", (new Texture(&vk_contex_))->LoadTextureCube("resource/textures/skybox_tex/hdr/gcanyon_cube.ktx"));
+	TextureMgr::GetInstance()->AddTexture("basecolor", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_basecolor.dds"));
+	TextureMgr::GetInstance()->AddTexture("metallic", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_metallic.dds"));
+	TextureMgr::GetInstance()->AddTexture("normal", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_normal.dds"));
+	TextureMgr::GetInstance()->AddTexture("occlusion", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_occlusion.dds"));
+	TextureMgr::GetInstance()->AddTexture("roughness", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_roughness.dds"));
+	TextureMgr::GetInstance()->AddTexture("env_irradiance_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_DIFFUSE));
+	TextureMgr::GetInstance()->AddTexture("env_specular_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_SPECULAR));
+	TextureMgr::GetInstance()->AddTexture("env_brdf_lut", GenerateBRDFLUT());
 	CreateSyncObjects();
 	CreateOpaqueDescriptorSets();
 	CreateSkyboxDescriptorSets();
@@ -182,14 +184,14 @@ void HakunaRenderer::CreateGraphicPipeline() {
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
 	pipelineInfo.basePipelineIndex = -1; // Optional
 
-	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/opaque_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/opaque_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shaderStages[0] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/opaque_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/opaque_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk_contex_.pipeline_struct.opaque_pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
 
-	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/skybox_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/skybox_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shaderStages[0] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/skybox_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/skybox_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk_contex_.pipeline_struct.skybox_pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
@@ -233,23 +235,23 @@ void HakunaRenderer::CreateCommandBuffers() {
 		renderPassBeginInfo.pClearValues = clearValues.data();
 		vkCmdBeginRenderPass(command_buffers_[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 		{
-			VkBuffer vertexBuffers[] = { mesh_mgr_.GetMeshByName("gun")->vertex_buffer_.buffer };
+			VkBuffer vertexBuffers[] = { MeshMgr::GetInstance()->GetMeshByName("gun")->vertex_buffer_.buffer };
 			VkDeviceSize offsets[] = { 0 };
 			vkCmdBindDescriptorSets(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_layout, 0, 1, &opaque_descriptor_sets_[i], 0, nullptr);
 			vkCmdBindVertexBuffers(command_buffers_[i], 0, 1, vertexBuffers, offsets);
-			vkCmdBindIndexBuffer(command_buffers_[i], mesh_mgr_.GetMeshByName("gun")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindIndexBuffer(command_buffers_[i], MeshMgr::GetInstance()->GetMeshByName("gun")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_struct.opaque_pipeline);
-			vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(mesh_mgr_.GetMeshByName("gun")->indices_.size()), 1, 0, 0, 0);
+			vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(MeshMgr::GetInstance()->GetMeshByName("gun")->indices_.size()), 1, 0, 0, 0);
 		}
 		if(is_render_skybox)
 		{
-			VkBuffer vertexBuffers[] = { mesh_mgr_.GetMeshByName("sky")->vertex_buffer_.buffer };
+			VkBuffer vertexBuffers[] = { MeshMgr::GetInstance()->GetMeshByName("sky")->vertex_buffer_.buffer };
 			VkDeviceSize offsets[] = { 0 };
 			vkCmdBindDescriptorSets(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_layout, 0, 1, &skybox_descriptor_sets_[i], 0, nullptr);
 			vkCmdBindVertexBuffers(command_buffers_[i], 0, 1, vertexBuffers, offsets);
-			vkCmdBindIndexBuffer(command_buffers_[i], mesh_mgr_.GetMeshByName("sky")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindIndexBuffer(command_buffers_[i], MeshMgr::GetInstance()->GetMeshByName("sky")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_struct.skybox_pipeline);
-			vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(mesh_mgr_.GetMeshByName("sky")->indices_.size()), 1, 0, 0, 0);
+			vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(MeshMgr::GetInstance()->GetMeshByName("sky")->indices_.size()), 1, 0, 0, 0);
 		}
 		
 		vkCmdEndRenderPass(command_buffers_[i]);
@@ -464,14 +466,16 @@ void HakunaRenderer::UpdateUniformBuffer(uint32_t currentImage) {
 
 	UboParams ubo_params = {};
 	ubo_params.cam_world_pos = cam_.GetWorldPos();
-	ubo_params.max_reflection_lod = static_cast<float>(texture_mgr_.GetTextureByName("env_specular_cubemap")->miplevel_size_);
+	ubo_params.max_reflection_lod = static_cast<float>(TextureMgr::GetInstance()->GetTextureByName("env_specular_cubemap")->miplevel_size_);
 	params_ubos_[currentImage].map(sizeof(ubo_params));
 	memcpy(params_ubos_[currentImage].mapped, &ubo_params, sizeof(ubo_params));
 	params_ubos_[currentImage].unmap();
 }
 void HakunaRenderer::Cleanup()
 {
-	shader_mgr_.CleanShaderModules(vk_contex_);
+	delete(ShaderManager::GetInstance());
+	delete(MeshMgr::GetInstance());
+	delete(TextureMgr::GetInstance());
 	VulkanUtility::CleanupFramebufferAndPipeline(vk_contex_, command_buffers_);
 	vk_contex_.vulkan_swapchain.Cleanup();
 	vkDestroyDescriptorSetLayout(vk_contex_.vulkan_device.logical_device, vk_contex_.descriptor_set_layout, nullptr);
@@ -480,15 +484,12 @@ void HakunaRenderer::Cleanup()
 		directional_light_ubos_[i].destroy();
 		params_ubos_[i].destroy();
 	}
-	mesh_mgr_.CleanUpMeshDict();
-	texture_mgr_.CleanUpTextures(vk_contex_);
 	vkDestroyDescriptorPool(vk_contex_.vulkan_device.logical_device, vk_contex_.descriptor_pool, nullptr);
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(vk_contex_.vulkan_device.logical_device, render_finished_semaphores_[i], nullptr);
 		vkDestroySemaphore(vk_contex_.vulkan_device.logical_device, image_available_semaphores_[i], nullptr);
 		vkDestroyFence(vk_contex_.vulkan_device.logical_device, in_flight_fences_[i], nullptr);
 	}
-
 	vkDestroyCommandPool(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_device.graphic_command_pool, nullptr);
 	vkDestroyCommandPool(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_device.transfer_command_pool, nullptr);
 	vkDestroyDevice(vk_contex_.vulkan_device.logical_device, nullptr);
@@ -563,7 +564,7 @@ void HakunaRenderer::CreateOpaqueDescriptorSets() {
 			descriptorWrites[k].dstArrayElement = 0;
 			descriptorWrites[k].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			descriptorWrites[k].descriptorCount = 1;
-			descriptorWrites[k].pImageInfo = &texture_mgr_.GetTextureByName(material_tex_names_[k-3])->descriptor_;
+			descriptorWrites[k].pImageInfo = &TextureMgr::GetInstance()->GetTextureByName(material_tex_names_[k-3])->descriptor_;
 		}
 		vkUpdateDescriptorSets(vk_contex_.vulkan_device.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
@@ -631,7 +632,7 @@ void HakunaRenderer::CreateSkyboxDescriptorSets() {
 		descriptorWrites[3].dstArrayElement = 0;
 		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		descriptorWrites[3].descriptorCount = 1;
-		descriptorWrites[3].pImageInfo = &texture_mgr_.GetTextureByName("sky_texcube")->descriptor_;
+		descriptorWrites[3].pImageInfo = &TextureMgr::GetInstance()->GetTextureByName("sky_texcube")->descriptor_;
 		vkUpdateDescriptorSets(vk_contex_.vulkan_device.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
 }
@@ -852,7 +853,7 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 	writeDescriptorSet.dstSet = descriptorset;
 	writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	writeDescriptorSet.dstBinding = 0;
-	writeDescriptorSet.pImageInfo = &texture_mgr_.GetTextureByName("sky_texcube")->descriptor_;
+	writeDescriptorSet.pImageInfo = &TextureMgr::GetInstance()->GetTextureByName("sky_texcube")->descriptor_;
 	writeDescriptorSet.descriptorCount = 1;
 
 	
@@ -976,14 +977,14 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 	pipelineCI.renderPass = renderpass;
 
 
-	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/filtercube_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[0] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/filtercube_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 	if (env_cubemap_type == EnvCubemapType::ECT_SPECULAR)
 	{
-		shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/prefilter_specular_envmap_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/prefilter_specular_envmap_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 	else
 	{
-		shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/prefilter_diffuse_envmap_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/prefilter_diffuse_envmap_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
 	VkPipeline pipeline;
@@ -1084,9 +1085,9 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 
 			VkDeviceSize offsets[1] = {0};
 
-			vkCmdBindVertexBuffers(cmdBuf, 0, 1, &mesh_mgr_.GetMeshByName("sky")->vertex_buffer_.buffer, offsets);
-			vkCmdBindIndexBuffer(cmdBuf, mesh_mgr_.GetMeshByName("sky")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
-			vkCmdDrawIndexed(cmdBuf, mesh_mgr_.GetMeshByName("sky")->indices_.size(), 1, 0, 0, 0);
+			vkCmdBindVertexBuffers(cmdBuf, 0, 1, &MeshMgr::GetInstance()->GetMeshByName("sky")->vertex_buffer_.buffer, offsets);
+			vkCmdBindIndexBuffer(cmdBuf, MeshMgr::GetInstance()->GetMeshByName("sky")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdDrawIndexed(cmdBuf, MeshMgr::GetInstance()->GetMeshByName("sky")->indices_.size(), 1, 0, 0, 0);
 			vkCmdEndRenderPass(cmdBuf);
 			// Copy region for transfer from framebuffer to cube face
 			VkImageCopy copyRegion = {};
@@ -1379,8 +1380,8 @@ std::shared_ptr<Texture> HakunaRenderer::GenerateBRDFLUT()
 	pipelineCI.pStages = shaderStages.data();
 	pipelineCI.pVertexInputState = &emptyVertexInputStateCI;
 	pipelineCI.renderPass = renderpass;
-	shaderStages[0] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/gen_brdf_lut_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	shaderStages[1] = shader_mgr_.LoadShader(vk_contex_, "resource/shaders/compiled_shaders/gen_brdf_lut_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shaderStages[0] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/gen_brdf_lut_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/gen_brdf_lut_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	VkPipeline pipeline;
 	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, vk_contex_.pipeline_cache, 1, &pipelineCI, nullptr, &pipeline) != VK_SUCCESS) {

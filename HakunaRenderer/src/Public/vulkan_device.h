@@ -84,8 +84,6 @@ public:
 private:
 	bool IsDeviceSuitable(VkPhysicalDevice physical_device, VkSurfaceKHR surface);
 	VkSampleCountFlagBits GetMaxUsableSampleCount();
-
-
 	QueueFamilyIndices GetQueueFamilies(VkPhysicalDevice physical_device, VkSurfaceKHR surface);
 	bool CheckDeviceExtensionsSupport(VkPhysicalDevice device);
 	SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice physical_device, VkSurfaceKHR surface);

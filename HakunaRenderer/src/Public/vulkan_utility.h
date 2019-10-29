@@ -657,18 +657,6 @@ public:
 		}
 	}
 
-	static VkShaderModule CreateShaderModule(const VulkanContex& vk_contex, const std::vector<char>& code) {
-		VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
-		shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-		shaderModuleCreateInfo.codeSize = code.size();
-		shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-		VkShaderModule shaderModule;
-		if (vkCreateShaderModule(vk_contex.vulkan_device.logical_device, &shaderModuleCreateInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create shader module!");
-		}
-		return shaderModule;
-	}
-
 	static void CreateColorResources(VulkanContex& vk_contex) {
 		VkFormat colorFormat = vk_contex.vulkan_swapchain.colorFormat_;
 		VulkanUtility::CreateImage(

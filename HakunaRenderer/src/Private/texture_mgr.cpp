@@ -1,13 +1,6 @@
 #include <iostream>
 #include "texture_mgr.h"
-TextureMgr::TextureMgr()
-{
-}
-
-TextureMgr::~TextureMgr()
-{
-}
-
+TextureMgr* TextureMgr::p_instance_ = nullptr;
 void TextureMgr::AddTexture(string tex_name, std::shared_ptr<Texture> tex_ptr)
 {
 	tex_dict_[tex_name] = tex_ptr;
@@ -42,7 +35,7 @@ shared_ptr<Texture> TextureMgr::GetTextureByName(string tex_name) {
 	return tex_dict_[tex_name];
 }
 
-void TextureMgr::CleanUpTextures(const VulkanUtility::VulkanContex& vk_contex) {
+void TextureMgr::CleanUpTextures() {
 
 
 	auto test1 = tex_dict_["basecolor"].use_count();

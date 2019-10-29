@@ -32,20 +32,30 @@ public:
 	Texture(const VulkanUtility::VulkanContex* vk_contex_ptr):vk_contex_ptr_(vk_contex_ptr) {}
 	std::shared_ptr<Texture> LoadTexture2D(string file_path);
 	std::shared_ptr<Texture> LoadTextureCube(string file_path);
-
 };
 
 class TextureMgr
 {
 public:
-	TextureMgr();
+	static TextureMgr* GetInstance()
+	{
+		if (p_instance_ == nullptr)
+			p_instance_ = new TextureMgr();
+		return p_instance_;
+	}
 	void AddTexture(string tex_name, std::shared_ptr<Texture> tex_ptr);
 	shared_ptr<Texture> GetTextureByName(string tex_name);
-	void CleanUpTextures(const VulkanUtility::VulkanContex& vk_contex);
-	~TextureMgr();
+	~TextureMgr() 
+	{
+		CleanUpTextures();
+	};
 private:
+	void CleanUpTextures();
+	static TextureMgr* p_instance_;
+	TextureMgr() {};
+	TextureMgr(const TextureMgr&);
+	TextureMgr& operator=(const TextureMgr&);
 	std::map<string, shared_ptr<Texture>> tex_dict_;
 	void CreateTextureSampler(const VulkanUtility::VulkanContex& vk_contex, Texture& tex);
-
 };
 

@@ -15,7 +15,7 @@
 #include <cstdlib>
 #include <set>
 #include <algorithm>
-#include "shader_manager.h"
+#include "shader_mgr.h"
 #include "vulkan_utility.h"
 #include "camera.h"
 #include "texture_mgr.h"
@@ -71,7 +71,7 @@ public:
 	bool vsync_ = false;
 	float delta_time_ = 0.0f;
 private:
-	TextureMgr texture_mgr_;
+	//TextureMgr texture_mgr_;
 	GLFWwindow *window_;
 	InputManager input_mgr_;
 	VkDebugUtilsMessengerEXT debug_messenger_;
@@ -118,8 +118,8 @@ private:
 	vector<VkSemaphore> render_finished_semaphores_;
 	vector<VkFence> in_flight_fences_;
 	size_t current_frame_ = 0;
-	MeshMgr mesh_mgr_;
-	ShaderManager shader_mgr_;
+	//MeshMgr mesh_mgr_;
+	//ShaderManager shader_mgr_;
 	/*Although many drivers and platforms trigger VK_ERROR_OUT_OF_DATE_KHR automatically after a window resize, 
 	it is not guaranteed to happen. That's why we'll add some extra code to also handle resizes explicitly. */
 	bool framebuffer_resized_ = false;
