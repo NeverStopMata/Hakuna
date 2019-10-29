@@ -109,7 +109,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);NOMINMAX</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\tinygltf;D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;$(MSBuildProjectDirectory)\src\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;$(MSBuildProjectDirectory)\src\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
@@ -152,7 +152,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);NOMINMAX</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\SDK\tinygltf;D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;$(MSBuildProjectDirectory)\src\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\gli;D:\SDK\tiny_obj_loader;D:\SDK\VulkanSDK\1.1.121.2\Include;D:\SDK\glfw-3.3.bin.WIN64\include;D:\SDK\glm;$(MSBuildProjectDirectory)\src\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
@@ -165,30 +165,35 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Scene.h" />
     <ClInclude Include="src\Public\camera.h" />
     <ClInclude Include="src\Public\directional_light.h" />
     <ClInclude Include="src\Public\draw_item.h" />
     <ClInclude Include="src\Public\HakunaRenderer.h" />
     <ClInclude Include="src\Public\input_mgr.h" />
+    <ClInclude Include="src\Public\json.hpp" />
     <ClInclude Include="src\Public\light.h" />
     <ClInclude Include="src\Public\material.h" />
     <ClInclude Include="src\Public\mesh.h" />
     <ClInclude Include="src\Public\mesh_mgr.h" />
     <ClInclude Include="src\Public\model.h" />
     <ClInclude Include="src\Public\perinstance_data.hpp" />
-    <ClInclude Include="src\Public\shader_manager.h" />
+    <ClInclude Include="src\Public\shader_mgr.h" />
+    <ClInclude Include="src\Public\stb_image.h" />
+    <ClInclude Include="src\Public\stb_image_write.h" />
     <ClInclude Include="src\Public\texture_mgr.h" />
+    <ClInclude Include="src\Public\tiny_gltf.h" />
     <ClInclude Include="src\Public\vertex.h" />
+    <ClInclude Include="src\Public\VulkanglTFModel.hpp" />
     <ClInclude Include="src\Public\vulkan_device.h" />
     <ClInclude Include="src\Public\vulkan_swapchain.h" />
     <ClInclude Include="src\Public\VulkanBuffer.hpp" />
-    <ClInclude Include="src\Public\VulkanDevice.hpp" />
-    <ClInclude Include="src\Public\VulkanglTFModel.hpp" />
     <ClInclude Include="src\Public\VulkanInitializers.hpp" />
     <ClInclude Include="src\Public\VulkanTools.h" />
     <ClInclude Include="src\Public\vulkan_utility.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Scene.cpp" />
     <ClCompile Include="src\Private\camera.cpp" />
     <ClCompile Include="src\Private\directional_light.cpp" />
     <ClCompile Include="src\Private\draw_item.cpp" />
@@ -200,9 +205,11 @@
     <ClCompile Include="src\Private\mesh.cpp" />
     <ClCompile Include="src\Private\mesh_mgr.cpp" />
     <ClCompile Include="src\Private\model.cpp" />
-    <ClCompile Include="src\Private\shader_manager.cpp" />
+    <ClCompile Include="src\Private\shader_mgr.cpp" />
     <ClCompile Include="src\Private\texture_mgr.cpp" />
+    <ClCompile Include="src\Private\tiny_gltf.cpp" />
     <ClCompile Include="src\Private\vertex.cpp" />
+    <ClCompile Include="src\Private\VulkanglTFModel.cpp" />
     <ClCompile Include="src\Private\vulkan_device.cpp" />
     <ClCompile Include="src\Private\vulkan_swapchain.cpp" />
     <ClCompile Include="src\Private\VulkanTools.cpp" />

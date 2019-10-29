@@ -39,9 +39,6 @@
     <ClInclude Include="src\Public\mesh_mgr.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\Public\shader_manager.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\Public\texture_mgr.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -63,12 +60,6 @@
     <ClInclude Include="src\Public\VulkanTools.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\Public\VulkanglTFModel.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Public\VulkanDevice.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\Public\VulkanInitializers.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -79,6 +70,27 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Public\vulkan_device.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\VulkanglTFModel.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\json.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\stb_image.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\tiny_gltf.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\stb_image_write.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\shader_mgr.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -110,9 +122,6 @@
     <ClCompile Include="src\Private\mesh_mgr.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\Private\shader_manager.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="src\Private\texture_mgr.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -132,6 +141,18 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Private\vulkan_device.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Private\VulkanglTFModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Private\tiny_gltf.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Private\shader_mgr.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

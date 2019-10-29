@@ -1,6 +1,4 @@
 #include "HakunaRenderer.h"
-#include "VulkanglTFModel.hpp"
-
 void HakunaRenderer::InitVulkan()
 {
 	VulkanUtility::CreateInstance(vk_contex_);
@@ -16,9 +14,9 @@ void HakunaRenderer::InitVulkan()
 	vk_contex_.vulkan_swapchain.CreateSwapchain(window_, vk_contex_.vulkan_device, false);
 	VulkanUtility::CreateRenderPass(vk_contex_);
 	VulkanUtility::CreateDescriptorSetLayout(vk_contex_);
+	vk_contex_.vulkan_device.CreatePipelineCache();
 	CreateGraphicPipeline();
 	vk_contex_.vulkan_device.CreateCommandPools();
-	//VulkanUtility::CreateCommandPools(vk_contex_);
 	VulkanUtility::CreateColorResources(vk_contex_);
 	VulkanUtility::CreateDepthResources(vk_contex_);
 	VulkanUtility::CreateFramebuffers(vk_contex_);
@@ -39,6 +37,7 @@ void HakunaRenderer::InitVulkan()
 	TextureMgr::GetInstance()->AddTexture("env_irradiance_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_DIFFUSE));
 	TextureMgr::GetInstance()->AddTexture("env_specular_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_SPECULAR));
 	TextureMgr::GetInstance()->AddTexture("env_brdf_lut", GenerateBRDFLUT());
+
 	CreateSyncObjects();
 	CreateOpaqueDescriptorSets();
 	CreateSkyboxDescriptorSets();
@@ -53,10 +52,6 @@ void HakunaRenderer::InitWindow()
 	glfwSetWindowUserPointer(window_, this);
 	glfwSetFramebufferSizeCallback(window_, framebufferResizeCallback);
 }
-
-
-
-
 
 void HakunaRenderer::SetupDebugMessenger() {
 	if (!enableValidationLayers) return;
@@ -160,42 +155,42 @@ void HakunaRenderer::CreateGraphicPipeline() {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
-	VkGraphicsPipelineCreateInfo pipelineInfo = {};
-	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	VkGraphicsPipelineCreateInfo pipelineCI = {};
+	pipelineCI.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	/*referencing the array of VkPipelineShaderStageCreateInfo structs.*/
-	pipelineInfo.stageCount = shaderStages.size();
-	pipelineInfo.pStages = shaderStages.data();
+	pipelineCI.stageCount = shaderStages.size();
+	pipelineCI.pStages = shaderStages.data();
 	/*the fixed - function stage.*/
-	pipelineInfo.pVertexInputState = &vertexInputInfo;
-	pipelineInfo.pInputAssemblyState = &inputAssembly;
-	pipelineInfo.pViewportState = &viewportState;
-	pipelineInfo.pRasterizationState = &rasterizer;
-	pipelineInfo.pMultisampleState = &multisampling;
-	pipelineInfo.pDepthStencilState = nullptr; // Optional
-	pipelineInfo.pColorBlendState = &colorBlending;
-	pipelineInfo.pDepthStencilState = &depthStencil;
-	pipelineInfo.pDynamicState = nullptr; // Optional
 
-	pipelineInfo.layout = vk_contex_.pipeline_layout;
+	pipelineCI.pVertexInputState = &vertexInputInfo;
+	pipelineCI.pInputAssemblyState = &inputAssembly;
+	pipelineCI.pViewportState = &viewportState;
+	pipelineCI.pRasterizationState = &rasterizer;
+	pipelineCI.pMultisampleState = &multisampling;
+	pipelineCI.pDepthStencilState = nullptr; // Optional
+	pipelineCI.pColorBlendState = &colorBlending;
+	pipelineCI.pDepthStencilState = &depthStencil;
+	pipelineCI.pDynamicState = nullptr; // Optional
 
-	pipelineInfo.renderPass = vk_contex_.renderpass;
-	pipelineInfo.subpass = 0;
+	pipelineCI.layout = vk_contex_.pipeline_layout;
 
-	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
-	pipelineInfo.basePipelineIndex = -1; // Optional
+	pipelineCI.renderPass = vk_contex_.renderpass;
+	pipelineCI.subpass = 0;
+
+	pipelineCI.basePipelineHandle = VK_NULL_HANDLE; // Optional
+	pipelineCI.basePipelineIndex = -1; // Optional
 
 	shaderStages[0] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/opaque_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 	shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/opaque_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk_contex_.pipeline_struct.opaque_pipeline) != VK_SUCCESS) {
+	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_device.pipeline_cache, 1, &pipelineCI, nullptr, &vk_contex_.pipeline_struct.opaque_pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
 
 	shaderStages[0] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/skybox_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 	shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/skybox_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk_contex_.pipeline_struct.skybox_pipeline) != VK_SUCCESS) {
+	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_device.pipeline_cache, 1, &pipelineCI, nullptr, &vk_contex_.pipeline_struct.skybox_pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
-	
 }
 
 
@@ -242,7 +237,10 @@ void HakunaRenderer::CreateCommandBuffers() {
 			vkCmdBindIndexBuffer(command_buffers_[i], MeshMgr::GetInstance()->GetMeshByName("gun")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_struct.opaque_pipeline);
 			vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(MeshMgr::GetInstance()->GetMeshByName("gun")->indices_.size()), 1, 0, 0, 0);
+
 		}
+
+
 		if(is_render_skybox)
 		{
 			VkBuffer vertexBuffers[] = { MeshMgr::GetInstance()->GetMeshByName("sky")->vertex_buffer_.buffer };
@@ -393,14 +391,6 @@ void HakunaRenderer::CreateUniformBuffers() {
 			&mvp_ubos_[i],
 			sizeof(UboMVP)
 		);
-		/*VulkanUtility::CreateBuffer(vk_contex_,
-			sizeof(UboMVP),
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			mvp_ubos_[i].buffer,
-			mvp_ubos_[i].memory,
-			1, nullptr);*/
 
 		vk_contex_.vulkan_device.CreateBuffer(
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -410,14 +400,6 @@ void HakunaRenderer::CreateUniformBuffers() {
 			sizeof(UboDirectionalLights)
 		);
 
-		/*VulkanUtility::CreateBuffer(vk_contex_,
-			sizeof(UboDirectionalLights),
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			directional_light_ubos_[i].buffer,
-			directional_light_ubos_[i].memory,
-			1, nullptr);*/
 		vk_contex_.vulkan_device.CreateBuffer(
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -425,15 +407,6 @@ void HakunaRenderer::CreateUniformBuffers() {
 			&params_ubos_[i],
 			sizeof(UboParams)
 		);
-		
-		//VulkanUtility::CreateBuffer(vk_contex_,
-		//	sizeof(UboParams),
-		//	VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		//	VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-		//	VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		//	params_ubos_[i].params_buffer,
-		//	params_ubos_[i].params_buffer_memory,
-		//	1, nullptr);
 	}
 }
 
@@ -476,6 +449,7 @@ void HakunaRenderer::Cleanup()
 	delete(ShaderManager::GetInstance());
 	delete(MeshMgr::GetInstance());
 	delete(TextureMgr::GetInstance());
+
 	VulkanUtility::CleanupFramebufferAndPipeline(vk_contex_, command_buffers_);
 	vk_contex_.vulkan_swapchain.Cleanup();
 	vkDestroyDescriptorSetLayout(vk_contex_.vulkan_device.logical_device, vk_contex_.descriptor_set_layout, nullptr);
@@ -490,15 +464,11 @@ void HakunaRenderer::Cleanup()
 		vkDestroySemaphore(vk_contex_.vulkan_device.logical_device, image_available_semaphores_[i], nullptr);
 		vkDestroyFence(vk_contex_.vulkan_device.logical_device, in_flight_fences_[i], nullptr);
 	}
-	vkDestroyCommandPool(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_device.graphic_command_pool, nullptr);
-	vkDestroyCommandPool(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_device.transfer_command_pool, nullptr);
-	vkDestroyDevice(vk_contex_.vulkan_device.logical_device, nullptr);
-
+	vk_contex_.vulkan_device.Cleanup();
 	if (enableValidationLayers) {
 		DestroyDebugUtilsMessengerEXT(vk_contex_.vk_instance, debug_messenger_, nullptr);
 	}
 	vkDestroyInstance(vk_contex_.vk_instance, nullptr);
-
 	cam_.ReleaseCameraContrl(input_mgr_);
 	glfwDestroyWindow(window_);
 	glfwTerminate();
@@ -565,6 +535,7 @@ void HakunaRenderer::CreateOpaqueDescriptorSets() {
 			descriptorWrites[k].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			descriptorWrites[k].descriptorCount = 1;
 			descriptorWrites[k].pImageInfo = &TextureMgr::GetInstance()->GetTextureByName(material_tex_names_[k-3])->descriptor_;
+
 		}
 		vkUpdateDescriptorSets(vk_contex_.vulkan_device.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
@@ -633,6 +604,7 @@ void HakunaRenderer::CreateSkyboxDescriptorSets() {
 		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		descriptorWrites[3].descriptorCount = 1;
 		descriptorWrites[3].pImageInfo = &TextureMgr::GetInstance()->GetTextureByName("sky_texcube")->descriptor_;
+
 		vkUpdateDescriptorSets(vk_contex_.vulkan_device.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
 }
@@ -642,7 +614,7 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 	auto tStart = std::chrono::high_resolution_clock::now();
 	const VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	/* if the job takes a lot of time, CPU won't wait for queue's job to be done and the main thread will go die.*/
-	const int32_t dim = (env_cubemap_type == EnvCubemapType::ECT_SPECULAR) ? 512 : 128;
+	const int32_t dim = (env_cubemap_type == EnvCubemapType::ECT_SPECULAR) ? 512 : 64;
 	const uint32_t numMips = static_cast<uint32_t>(floor(std::log2(dim)));
 	auto prefilterCube = std::make_shared<Texture>(&vk_contex_);
 	prefilterCube->miplevel_size_ = numMips;
@@ -976,7 +948,6 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 	pipelineCI.pVertexInputState = &vertexInputStateCI;
 	pipelineCI.renderPass = renderpass;
 
-
 	shaderStages[0] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/filtercube_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 	if (env_cubemap_type == EnvCubemapType::ECT_SPECULAR)
 	{
@@ -985,11 +956,12 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 	else
 	{
 		shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/prefilter_diffuse_envmap_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+
 	}
 
 	VkPipeline pipeline;
 
-	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, vk_contex_.pipeline_cache, 1, &pipelineCI, nullptr, &pipeline) != VK_SUCCESS) {
+	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_device.pipeline_cache, 1, &pipelineCI, nullptr, &pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to Create Graphics Pipelines!");
 	}
 
@@ -1084,10 +1056,10 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 			vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelinelayout, 0, 1, &descriptorset, 0, NULL);
 
 			VkDeviceSize offsets[1] = {0};
-
 			vkCmdBindVertexBuffers(cmdBuf, 0, 1, &MeshMgr::GetInstance()->GetMeshByName("sky")->vertex_buffer_.buffer, offsets);
 			vkCmdBindIndexBuffer(cmdBuf, MeshMgr::GetInstance()->GetMeshByName("sky")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexed(cmdBuf, MeshMgr::GetInstance()->GetMeshByName("sky")->indices_.size(), 1, 0, 0, 0);
+
 			vkCmdEndRenderPass(cmdBuf);
 			// Copy region for transfer from framebuffer to cube face
 			VkImageCopy copyRegion = {};
@@ -1382,9 +1354,8 @@ std::shared_ptr<Texture> HakunaRenderer::GenerateBRDFLUT()
 	pipelineCI.renderPass = renderpass;
 	shaderStages[0] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/gen_brdf_lut_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 	shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/gen_brdf_lut_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-
 	VkPipeline pipeline;
-	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, vk_contex_.pipeline_cache, 1, &pipelineCI, nullptr, &pipeline) != VK_SUCCESS) {
+	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_device.pipeline_cache, 1, &pipelineCI, nullptr, &pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to Create Graphics Pipelines!");
 	}
 

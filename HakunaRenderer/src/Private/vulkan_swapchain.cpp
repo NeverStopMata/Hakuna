@@ -1,5 +1,4 @@
 #include "vulkan_swapchain.h"
-#include "vulkan_device.h"
 void VulkanSwapchain::CreateSurface(GLFWwindow* windows, VkInstance vk_instance_)
 {
 	if (glfwCreateWindowSurface(vk_instance_, windows, nullptr, &(this->surface_)) != VK_SUCCESS) {

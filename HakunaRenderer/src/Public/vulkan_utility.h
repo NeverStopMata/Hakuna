@@ -36,7 +36,6 @@ public:
 	struct VulkanContex {
 		VkInstance vk_instance;
 		vector<VkCommandBuffer> commandBuffers;//with the size of swapChain image count.
-		VkPipelineCache pipeline_cache;
 		VulkanDevice vulkan_device;
 		VulkanSwapchain vulkan_swapchain;
 		vector<VkFramebuffer> swapchain_framebuffers;//with the size of swapChain image count.
@@ -65,6 +64,7 @@ public:
 	static bool HasStencilComponent(VkFormat format) {
 		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 	}
+
 
 	static void CopyBufferToImage(const VulkanContex& vk_contex, VkBuffer buffer, VkImage image, const gli::texture2d& src_tex_2d) {
 		VkCommandBuffer commandBuffer;

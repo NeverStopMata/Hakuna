@@ -24,9 +24,8 @@
 #include "math.h"
 #include "input_mgr.h"
 #include "VulkanBuffer.hpp"
-using namespace std;
-
-
+#include "VulkanglTFModel.hpp"
+//using namespace std;
 /*
 Scalars have to be aligned by N(= 4 bytes given 32 bit floats).
 A vec2 must be aligned by 2N(= 8 bytes)
@@ -61,8 +60,10 @@ void DestroyDebugUtilsMessengerEXT(
 	VkInstance instance, 
 	VkDebugUtilsMessengerEXT debugMessenger, 
 	const VkAllocationCallbacks* pAllocator);
+
 class HakunaRenderer
 {
+
 public:
 	Camera cam_;
 	DirectionalLight main_light_;
@@ -70,8 +71,9 @@ public:
 	const int WINDOW_HEIGHT = 600;
 	bool vsync_ = false;
 	float delta_time_ = 0.0f;
+	vkglTF::Model scene_;
 private:
-	//TextureMgr texture_mgr_;
+
 	GLFWwindow *window_;
 	InputManager input_mgr_;
 	VkDebugUtilsMessengerEXT debug_messenger_;
@@ -118,8 +120,6 @@ private:
 	vector<VkSemaphore> render_finished_semaphores_;
 	vector<VkFence> in_flight_fences_;
 	size_t current_frame_ = 0;
-	//MeshMgr mesh_mgr_;
-	//ShaderManager shader_mgr_;
 	/*Although many drivers and platforms trigger VK_ERROR_OUT_OF_DATE_KHR automatically after a window resize, 
 	it is not guaranteed to happen. That's why we'll add some extra code to also handle resizes explicitly. */
 	bool framebuffer_resized_ = false;
@@ -179,7 +179,7 @@ private:
 	void CreateGraphicPipeline();
 	void CreateOpaqueDescriptorSets();
 	void CreateSkyboxDescriptorSets();
-	enum EnvCubemapType {
+	enum class EnvCubemapType {
 		ECT_SPECULAR,
 		ECT_DIFFUSE,
 	};

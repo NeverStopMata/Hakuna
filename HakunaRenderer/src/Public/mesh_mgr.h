@@ -16,9 +16,6 @@ using namespace std;
 class MeshMgr
 {
 public:
-	std::map<std::string, std::shared_ptr<Mesh>> mesh_dict_;
-	//std::vector<Vertex> vertices_;
-	//std::vector<uint32_t> indices_;
 	~MeshMgr();
 	shared_ptr<Mesh> GetMeshByName(string mesh_name);
 	static MeshMgr* GetInstance()
@@ -37,6 +34,9 @@ private:
 	void CalculateTangents(std::array<Vertex, 3>& vertices);
 	void CreateCubeMesh(std::string name, glm::vec3 scale);
 	void CleanUpMeshDict();
+
+
 	VulkanUtility::VulkanContex* vk_context_ptr_;
+	std::map<std::string, std::shared_ptr<Mesh>> mesh_dict_;
 };
 

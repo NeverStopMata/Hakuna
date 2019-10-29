@@ -1,13 +1,14 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 #include "mesh_mgr.h"
-
 MeshMgr* MeshMgr::p_instance_ = nullptr;
 MeshMgr::MeshMgr() {}
 MeshMgr::~MeshMgr()
 {
 	CleanUpMeshDict();
 }
+
+
 void MeshMgr::Init(VulkanUtility::VulkanContex* vk_context) {
 	vk_context_ptr_ = vk_context;
 }
