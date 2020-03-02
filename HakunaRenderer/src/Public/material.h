@@ -3,13 +3,19 @@
 #include <memory>
 class Material
 {
+public:
+	const array<string, 5> texture_types_ = { "basecolor" ,"normal","metallic","roughness","occlusion" };
 	enum AlphaMode { ALPHAMODE_OPAQUE, ALPHAMODE_MASK, ALPHAMODE_BLEND };
 	AlphaMode alphaMode = ALPHAMODE_OPAQUE;
-	std::shared_ptr<Texture> baseColorTexture;
-	std::shared_ptr<Texture> metallicTexture;
-	std::shared_ptr<Texture> normalTexture;
-	std::shared_ptr<Texture> occlusionTexture;
-	std::shared_ptr<Texture> roughnessTexture;
-	std::shared_ptr<Texture> emissiveTexture;
-	VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+	vector<string> material_tex_names_;
+	Material(string name)
+	{
+		for (auto tex_type : texture_types_)
+		{
+			material_tex_names_.emplace_back(name + "_" + tex_type);
+		}
+		material_tex_names_.emplace_back("env_irradiance_cubemap");
+		material_tex_names_.emplace_back("env_specular_cubemap");
+		material_tex_names_.emplace_back("env_brdf_lut");
+	}
 };

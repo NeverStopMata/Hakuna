@@ -6,7 +6,7 @@ void InputManager::Init(GLFWwindow* window)
 	window_ = window;
 	x_axis_ = nullptr;
 	y_axis_ = nullptr;
-	mouse_speed_ = 0.03;
+	mouse_speed_ = 400;
 	
 	if (window_)
 	{
@@ -79,6 +79,12 @@ void InputManager::ClearMouseAxisBinding()
 {
 	x_axis_ = nullptr;
 	y_axis_ = nullptr;
+}
+
+bool InputManager::CheckKeyState(int key, int state)
+{
+	return glfwGetKey(window_, key) == state;
+	
 }
 
 //keyboard callback

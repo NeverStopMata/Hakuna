@@ -28,6 +28,7 @@ public:
 	void RemoveKeyBoardBinding(int key, int action, const Callback& callback);
 	void RemoveMouseButtonBinding(int key, int action, const Callback& callback);
 	void ClearMouseAxisBinding();
+	bool CheckKeyState(int key, int state);
 private:
 	std::map<inputMode, std::vector<Callback>> key_board_callbacks_;
 

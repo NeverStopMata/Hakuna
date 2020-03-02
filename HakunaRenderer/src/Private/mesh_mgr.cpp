@@ -14,6 +14,9 @@ void MeshMgr::Init(VulkanUtility::VulkanContex* vk_context) {
 }
 
 void MeshMgr::LoadModelFromFile(std::string model_path,std::string name, glm::vec3 scale) {
+	if (mesh_dict_.find(name) != mesh_dict_.end()){
+		return;
+	}
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
@@ -55,7 +58,7 @@ void MeshMgr::LoadModelFromFile(std::string model_path,std::string name, glm::ve
 			for (int k = 0; k < 3; k++) {
 				if (uniqueVertices.count(tmp_vertices[k]) == 0) {
 					uniqueVertices[tmp_vertices[k]] = static_cast<uint32_t>(new_mesh_ptr_->vertices_.size());
-					new_mesh_ptr_->vertices_.push_back(tmp_vertices[k]);
+					new_mesh_ptr_->AddNewVertex(tmp_vertices[k]);
 				}
 				new_mesh_ptr_->indices_.push_back(uniqueVertices[tmp_vertices[k]]);
 			}

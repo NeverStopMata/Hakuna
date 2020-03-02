@@ -25,6 +25,9 @@
 #include "input_mgr.h"
 #include "VulkanBuffer.hpp"
 #include "VulkanglTFModel.hpp"
+#include "render_element.h"
+#include "view_frustum_culler.h"
+//right hand axis
 //using namespace std;
 /*
 Scalars have to be aligned by N(= 4 bytes given 32 bit floats).
@@ -33,22 +36,28 @@ A vec3 or vec4 must be aligned by 4N(= 16 bytes)
 A nested structure must be aligned by the base alignment of its members rounded up to a multiple of 16.
 A mat4 matrix must have the same alignment as a vec4.
 */
-struct UboMVP {
-	alignas(16) glm::mat4 model;
-	alignas(16) glm::mat4 model_for_normal;
+struct UboGlobalParams {
+	/*alignas(16) glm::mat4 model;
+	alignas(16) glm::mat4 model_for_normal;*/
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
-};
-
-struct UboDirectionalLights {
-	alignas(16) glm::vec3 direction;
-	alignas(16) glm::vec3 color;
-};
-
-struct UboParams {
+	alignas(16) glm::vec3 light_direction;
+	alignas(16) glm::vec3 light_color;
 	alignas(16) glm::vec3 cam_world_pos;
 	alignas(4) float max_reflection_lod;
+	alignas(4) float game_time;
 };
+
+//struct UboDirectionalLights {
+//	alignas(16) glm::vec3 direction;
+//	alignas(16) glm::vec3 color;
+//};
+//
+//struct UboParams {
+//	alignas(16) glm::vec3 cam_world_pos;
+//	alignas(4) float max_reflection_lod;
+//	alignas(4) float game_time;
+//};
 
 VkResult CreateDebugUtilsMessengerEXT(
 	VkInstance instance, 
@@ -63,17 +72,18 @@ void DestroyDebugUtilsMessengerEXT(
 
 class HakunaRenderer
 {
-
 public:
 	Camera cam_;
+	ViewFrustumCuller vfc_;
 	DirectionalLight main_light_;
-	const int WINDOW_WIDTH = 800;
-	const int WINDOW_HEIGHT = 600;
+	const int WINDOW_WIDTH = 1920;
+	const int WINDOW_HEIGHT = 1080;
 	bool vsync_ = false;
 	float delta_time_ = 0.0f;
-	vkglTF::Model scene_;
+	vector<RenderElement> render_elements_;
+	friend class RenderElement;
+	friend class MSOCManager;
 private:
-
 	GLFWwindow *window_;
 	InputManager input_mgr_;
 	VkDebugUtilsMessengerEXT debug_messenger_;
@@ -85,19 +95,21 @@ private:
 	//	VkBuffer mvp_buffer;
 	//	VkDeviceMemory mvp_buffer_memory;
 	//};
-	vector<VulkanBuffer> mvp_ubos_;
+	vector<VulkanBuffer> global_params_ubos_;
 
+
+	//vector<array<glm::mat4, 2>> pushConstants_;
 	//struct DrctLightBufferSturct {
 	//	VkBuffer directional_light_buffer;
 	//	VkDeviceMemory directional_light_buffer_memory;
 	//};
-	vector<VulkanBuffer> directional_light_ubos_;
+	//vector<VulkanBuffer> directional_light_ubos_;
 
-	//struct ParamsBufferSturct {
-	//	VkBuffer params_buffer;
-	//	VkDeviceMemory params_buffer_memory;
-	//};
-	vector<VulkanBuffer> params_ubos_;
+	////struct ParamsBufferSturct {
+	////	VkBuffer params_buffer;
+	////	VkDeviceMemory params_buffer_memory;
+	////};
+	//vector<VulkanBuffer> params_ubos_;
 
 	vector<string> material_tex_names_ = { 
 		"basecolor", 
@@ -130,9 +142,11 @@ public:
 		InitWindow();
 		input_mgr_.Init(window_);
 		InitVulkan();
-		Camera temp_cam(60.f, vk_contex_.vulkan_swapchain.extent_.width / (float)vk_contex_.vulkan_swapchain.extent_.height, 100.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
+		MSOCManager::GetInstance()->InitMSOCManager(this);
+		Camera temp_cam(60.f, vk_contex_.vulkan_swapchain.extent_.width / (float)vk_contex_.vulkan_swapchain.extent_.height, 700.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
 		cam_ = temp_cam;
 		cam_.SetupCameraContrl(input_mgr_);
+		vfc_.SetOwnerCamera(&cam_);
 	}
 	~HakunaRenderer() {
 		Cleanup();
@@ -150,7 +164,7 @@ public:
 			DrawFrame();
 			auto end_time = std::chrono::high_resolution_clock::now();
 			delta_time_ = std::chrono::duration<float, std::chrono::seconds::period>(end_time - start_time_for_cal_delta).count();
-			auto start_time_for_cal_delta = std::chrono::high_resolution_clock::now();
+			start_time_for_cal_delta = std::chrono::high_resolution_clock::now();
 #ifdef SHOW_FPS			
 			frame_cnt++;
 			if (frame_cnt == 500)
@@ -165,6 +179,7 @@ public:
 		vkDeviceWaitIdle(vk_contex_.vulkan_device.logical_device);
 	}
 
+	void GetWindowSize(int* width,int* height);
 private:
 	void InitVulkan();//stay
 	void SetupDebugMessenger();//stay
@@ -172,6 +187,9 @@ private:
 	void Cleanup();
 	void ReCreateSwapChain();//13
 	void CreateCommandBuffers();
+	void RecordCommandBuffers(uint32_t currentImage);
+
+	void CullOccludedRenderElement(uint32_t currentImage);
 	void DrawFrame();
 	void CreateSyncObjects();
 	void CreateUniformBuffers();

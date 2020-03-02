@@ -2,13 +2,21 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 layout(binding = 0) uniform UniformBufferObject {
-    mat4 model;
-	mat4 model_for_normal;
     mat4 view;
     mat4 proj;
-} ubo_mvp;
+    vec3 direct;
+	vec3 color;
+    vec3 cam_world_pos;
+	float max_reflection_lod;
+	float game_time;
+} ubo_global_params;
 
-layout(binding = 2) uniform UniformBufferObject2 { vec3 cam_world_pos;} ubo_params;
+
+
+layout(push_constant) uniform PushConsts {
+	mat4 model;
+	mat4 model_for_normal;
+} pushConsts;
 
 
 layout(location = 0) in vec3 inPosition;
@@ -26,12 +34,12 @@ layout(location = 4) out vec3 fragBiTangent;
 layout(location = 5) out vec3 fragWorldViewDirection;
 
 void main() {
-    vec4 worldPos = ubo_mvp.model * vec4(inPosition, 1.0);
-    gl_Position   = ubo_mvp.proj * ubo_mvp.view * worldPos;
+    vec4 worldPos = pushConsts.model * vec4(inPosition, 1.0);
+    gl_Position   = ubo_global_params.proj * ubo_global_params.view * worldPos;
 	fragWorldPos  = worldPos.xyz;
     fragTexCoord  = inTexCoord;
-	fragNormal    = (ubo_mvp.model_for_normal * vec4(inNormal, 0.0)).xyz;
-	fragTangent   = (ubo_mvp.model * vec4(inTangent,   0.0)).xyz;
-	fragBiTangent = (ubo_mvp.model * vec4(inBiTangent, 0.0)).xyz;
-    fragWorldViewDirection = ubo_params.cam_world_pos - worldPos.xyz;
+	fragNormal    = (pushConsts.model_for_normal * vec4(inNormal, 0.0)).xyz;
+	fragTangent   = (pushConsts.model * vec4(inTangent,   0.0)).xyz;
+	fragBiTangent = (pushConsts.model * vec4(inBiTangent, 0.0)).xyz;
+    fragWorldViewDirection = ubo_global_params.cam_world_pos - worldPos.xyz;
 }

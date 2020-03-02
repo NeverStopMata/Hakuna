@@ -1,4 +1,5 @@
 #pragma once
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "input_mgr.h"
@@ -22,15 +23,17 @@ public:
 		proj_matrix_(perspective(radians(fov_y_), aspect_, near_, far_)),
 		forward_move_direction_(0),
 		right_move_direction_(0),
-		move_speed_(0.0002f),
+		move_speed_(1.f),
 		is_rotating_(false),
 		pitch_speed_(0),
-		yaw_speed_(0) {}
+		yaw_speed_(0),
+		is_speed_up(false),
+		is_slow_down(false){}
 
-	mat4x4 GetViewMatrix() {
+	mat4x4 GetViewMatrix() const{
 		return view_matrix_;
 	}
-	mat4x4 GetProjMatrix() {
+	mat4x4 GetProjMatrix() const{
 		return proj_matrix_;
 	}
 	vec3 GetWorldPos() {
@@ -40,42 +43,30 @@ public:
 		aspect_ = aspect;
 		proj_matrix_ = perspective(radians(fov_y_), aspect_, near_, far_);
 	}
-
-	void UpdatePerFrame(float deltaTime)
-	{
-		bool needUpdateViewMatrix = false;
-		if (forward_move_direction_ != 0)
-		{
-			position_ += forward_ * move_speed_ * forward_move_direction_ * deltaTime;
-			needUpdateViewMatrix = true;
-		}
-
-		if (right_move_direction_ != 0)
-		{
-			position_ += cross(forward_,up_) * move_speed_ * right_move_direction_ * deltaTime;
-			needUpdateViewMatrix = true;
-		}
-
-		if (is_rotating_)
-		{
-			if (yaw_speed_ != 0)
-			{
-				RotateEular(yaw_speed_ * deltaTime, glm::vec3(0,1,0));
-				needUpdateViewMatrix = true;
-				yaw_speed_ = 0;
-			}
-			if (pitch_speed_ != 0)
-			{
-				RotateEular(pitch_speed_ * deltaTime, cross(forward_,up_));
-				needUpdateViewMatrix = true;
-				pitch_speed_ = 0;
-			}
-		}
-		if (needUpdateViewMatrix)
-		{
-			UpdateViewMatrix();
-		}
+	vec3 GetForwardVector() const {
+		return forward_;
 	}
+	vec3 GetUpVector() const {
+		return up_;
+	}
+	vec3 GetRightVector() const {
+		return glm::cross(forward_, up_);
+	}
+	float GetNear() const
+	{
+		return near_;
+	}
+	float GetFar() const
+	{
+		return far_;
+	}
+	float GetFovYInRadians() const {
+		return radians(fov_y_);
+	}
+	float GetAspect() const {
+		return aspect_;
+	}
+	void UpdatePerFrame(float deltaTime);
 	void SetupCameraContrl(InputManager& input_mgr);
 	void ReleaseCameraContrl(InputManager& input_mgr);
 private:
@@ -94,11 +85,16 @@ private:
 	bool is_rotating_;
 	double pitch_speed_;
 	double yaw_speed_;
+	bool is_speed_up;
+	bool is_slow_down;
 	void UpdateViewMatrix()
 	{
 		view_matrix_ = lookAt(position_, position_ + forward_, up_);
 	}
-
+	float GetAdjustSpeed()
+	{
+		return (is_slow_down ? 0.05f : (is_speed_up ? 5.0f : 1.0f));
+	}
 	void AddForwardSpeed(float forwardSpeedDelta)
 	{
 		forward_move_direction_ += forwardSpeedDelta;
@@ -109,6 +105,16 @@ private:
 	{
 		right_move_direction_ += forwardSpeedDelta;
 		right_move_direction_ = glm::clamp(right_move_direction_, -1.0f, 1.0f);
+	}
+
+	void SetSpeedUp(bool val)
+	{
+		is_speed_up = val;
+	}
+
+	void SetSlowDown(bool val)
+	{
+		is_slow_down = val;
 	}
 
 	void RotateEular(float rotate_angle,glm::vec3 rotate_aixs)

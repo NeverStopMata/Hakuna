@@ -4,12 +4,16 @@
 layout(location = 0) in vec3 fragWorldPos;
 
 
-layout(binding = 1) uniform UniformBufferObject1 {
+layout(binding = 0) uniform UniformBufferObject {
+    mat4 view;
+    mat4 proj;
     vec3 direct;
 	vec3 color;
-} ubo_direc_light;
-layout(binding = 2) uniform UniformBufferObject2 { vec3 cam_world_pos;} ubo_params;
-layout(binding = 3) uniform samplerCube skyboxTextureSampler;
+    vec3 cam_world_pos;
+	float max_reflection_lod;
+	float game_time;
+} ubo_global_params;
+layout(binding = 1) uniform samplerCube skyboxTextureSampler;
 
 layout(location = 0) out vec4 outColor;
 
@@ -21,7 +25,7 @@ layout(location = 0) out vec4 outColor;
 
 void main() 
 {
-	vec3 skyDir = normalize(fragWorldPos - ubo_params.cam_world_pos);
+	vec3 skyDir = normalize(fragWorldPos - ubo_global_params.cam_world_pos);
 	vec3 skyCol = texture(skyboxTextureSampler,skyDir * vec3(1,-1,1)).rgb;
 	skyCol = ACESToneMapping(skyCol, 3.0);
 	skyCol = pow(skyCol, vec3(1.0f / 2.2f));

@@ -44,6 +44,7 @@ public:
 		return p_instance_;
 	}
 	void AddTexture(string tex_name, std::shared_ptr<Texture> tex_ptr);
+	bool FindTextureByName(string tex_name);
 	shared_ptr<Texture> GetTextureByName(string tex_name);
 	~TextureMgr() 
 	{

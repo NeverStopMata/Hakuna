@@ -1,4 +1,13 @@
 #include "mesh.h"
+#include "msoc_mgr.h"
+void Mesh::GetAllTriangles(std::vector<Triangle>& triangles)
+{
+	triangles.clear();
+	for (int i = 0; i < indices_.size(); i += 3)
+	{
+		triangles.emplace_back(Triangle{ array<glm::vec3,3>{vertices_[indices_[i]].pos,vertices_[indices_[i+1]].pos,vertices_[indices_[i+2]].pos}});
+	}
+}
 void Mesh::CreateVertexBuffer(VulkanUtility::VulkanContex* vk_context_ptr) {
 	std::vector<uint32_t> stadingBufferQueueFamilyIndices{ static_cast<uint32_t>(vk_context_ptr->vulkan_device.queue_family_indices.transferFamily) };
 	std::vector<uint32_t> deviceLocalBufferQueueFamilyIndices{

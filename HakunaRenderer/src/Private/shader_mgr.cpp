@@ -49,10 +49,10 @@ VkPipelineShaderStageCreateInfo ShaderManager::LoadShader(std::string fileName, 
 {
 	VkPipelineShaderStageCreateInfo shaderStage = {};
 	auto vertShaderCode = ShaderManager::ReadShaderFile(fileName);
-	VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
+	VkShaderModule shader_module = CreateShaderModule(vertShaderCode);
 	shaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	shaderStage.stage = stage;
-	shaderStage.module = vertShaderModule;
+	shaderStage.module = shader_module;
 	shaderStage.pName = "main";
 	shader_modules_.push_back(shaderStage.module);
 	return shaderStage;

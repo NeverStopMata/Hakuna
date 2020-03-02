@@ -3,7 +3,15 @@
 TextureMgr* TextureMgr::p_instance_ = nullptr;
 void TextureMgr::AddTexture(string tex_name, std::shared_ptr<Texture> tex_ptr)
 {
-	tex_dict_[tex_name] = tex_ptr;
+	if (tex_dict_.find(tex_name) == tex_dict_.end())
+	{
+		tex_dict_[tex_name] = tex_ptr;
+	}
+}
+
+bool TextureMgr::FindTextureByName(string tex_name)
+{
+	return (tex_dict_.find(tex_name) != tex_dict_.end());
 }
 
 void TextureMgr::CreateTextureSampler(const VulkanUtility::VulkanContex& vk_contex, Texture& tex) {
@@ -36,9 +44,6 @@ shared_ptr<Texture> TextureMgr::GetTextureByName(string tex_name) {
 }
 
 void TextureMgr::CleanUpTextures() {
-
-
-	auto test1 = tex_dict_["basecolor"].use_count();
 	for (auto kv : tex_dict_) {
 		kv.second->CleanUp();
 		kv.second.reset();

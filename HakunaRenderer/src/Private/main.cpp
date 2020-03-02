@@ -6,24 +6,12 @@
 #else
 #define new new
 #endif
-
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
 #include <iostream>
-
 #include "HakunaRenderer.h"
 #ifdef _DEBUG
 static _CrtMemState s1, s2, s3;
 #endif // _DEBUG
 
-
-#include "draw_item.h"
-#include "perinstance_data.hpp"
 int main() {
 #ifdef _DEBUG
 	_CrtMemCheckpoint(&s1);
@@ -55,6 +43,28 @@ int main() {
 		return EXIT_FAILURE;
 	}
 #endif
+
+/*multi-thread code example begin*/
+	//ThreadPool pool(8);
+	//std::vector< std::future<int> > results;
+	//std::array<int, 8> test_array{ 0,1,2,3,4,5,6,7 };
+	//for (int i = 0; i < 8; ++i) {
+	//	results.emplace_back(
+	//		pool.enqueue([i, test_array] {
+	//		std::cout << "hello " << test_array[i] << std::endl;
+	//		std::this_thread::sleep_for(std::chrono::seconds(3));
+	//		std::cout << "world " << i << std::endl;
+	//		return i * i;
+	//	})
+	//	);
+	//}
+
+	//for (auto&& result : results)
+	//	std::cout << result.get() << ' ';
+	//std::cout << std::endl;
+
+	//return 0;
+/*multi-thread code example end*/
 	return EXIT_SUCCESS;
 }
 

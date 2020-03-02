@@ -51,12 +51,6 @@
     <ClInclude Include="src\Public\model.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\Public\draw_item.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Public\perinstance_data.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\Public\VulkanTools.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -87,10 +81,28 @@
     <ClInclude Include="src\Public\stb_image_write.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Scene.h">
+    <ClInclude Include="src\Public\shader_mgr.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\Public\shader_mgr.h">
+    <ClInclude Include="src\Public\render_element.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\msoc_mgr.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\bbox.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\readme.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\thread_pool.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\cullable.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Public\view_frustum_culler.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -131,9 +143,6 @@
     <ClCompile Include="src\Private\model.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\Private\draw_item.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="src\Private\VulkanTools.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -149,10 +158,16 @@
     <ClCompile Include="src\Private\tiny_gltf.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Scene.cpp">
+    <ClCompile Include="src\Private\shader_mgr.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\Private\shader_mgr.cpp">
+    <ClCompile Include="src\Private\render_element.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Private\msoc_mgr.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Private\view_frustum_culler.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

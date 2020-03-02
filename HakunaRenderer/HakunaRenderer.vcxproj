@@ -165,10 +165,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Scene.h" />
+    <ClInclude Include="src\Public\bbox.h" />
     <ClInclude Include="src\Public\camera.h" />
+    <ClInclude Include="src\Public\cullable.h" />
     <ClInclude Include="src\Public\directional_light.h" />
-    <ClInclude Include="src\Public\draw_item.h" />
     <ClInclude Include="src\Public\HakunaRenderer.h" />
     <ClInclude Include="src\Public\input_mgr.h" />
     <ClInclude Include="src\Public\json.hpp" />
@@ -177,13 +177,16 @@
     <ClInclude Include="src\Public\mesh.h" />
     <ClInclude Include="src\Public\mesh_mgr.h" />
     <ClInclude Include="src\Public\model.h" />
-    <ClInclude Include="src\Public\perinstance_data.hpp" />
+    <ClInclude Include="src\Public\msoc_mgr.h" />
+    <ClInclude Include="src\Public\render_element.h" />
     <ClInclude Include="src\Public\shader_mgr.h" />
     <ClInclude Include="src\Public\stb_image.h" />
     <ClInclude Include="src\Public\stb_image_write.h" />
     <ClInclude Include="src\Public\texture_mgr.h" />
+    <ClInclude Include="src\Public\thread_pool.h" />
     <ClInclude Include="src\Public\tiny_gltf.h" />
     <ClInclude Include="src\Public\vertex.h" />
+    <ClInclude Include="src\Public\view_frustum_culler.h" />
     <ClInclude Include="src\Public\VulkanglTFModel.hpp" />
     <ClInclude Include="src\Public\vulkan_device.h" />
     <ClInclude Include="src\Public\vulkan_swapchain.h" />
@@ -191,12 +194,11 @@
     <ClInclude Include="src\Public\VulkanInitializers.hpp" />
     <ClInclude Include="src\Public\VulkanTools.h" />
     <ClInclude Include="src\Public\vulkan_utility.h" />
+    <ClInclude Include="src\readme.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Scene.cpp" />
     <ClCompile Include="src\Private\camera.cpp" />
     <ClCompile Include="src\Private\directional_light.cpp" />
-    <ClCompile Include="src\Private\draw_item.cpp" />
     <ClCompile Include="src\Private\HakunaRenderer.cpp" />
     <ClCompile Include="src\Private\input_mgr.cpp" />
     <ClCompile Include="src\Private\light.cpp" />
@@ -205,10 +207,13 @@
     <ClCompile Include="src\Private\mesh.cpp" />
     <ClCompile Include="src\Private\mesh_mgr.cpp" />
     <ClCompile Include="src\Private\model.cpp" />
+    <ClCompile Include="src\Private\msoc_mgr.cpp" />
+    <ClCompile Include="src\Private\render_element.cpp" />
     <ClCompile Include="src\Private\shader_mgr.cpp" />
     <ClCompile Include="src\Private\texture_mgr.cpp" />
     <ClCompile Include="src\Private\tiny_gltf.cpp" />
     <ClCompile Include="src\Private\vertex.cpp" />
+    <ClCompile Include="src\Private\view_frustum_culler.cpp" />
     <ClCompile Include="src\Private\VulkanglTFModel.cpp" />
     <ClCompile Include="src\Private\vulkan_device.cpp" />
     <ClCompile Include="src\Private\vulkan_swapchain.cpp" />

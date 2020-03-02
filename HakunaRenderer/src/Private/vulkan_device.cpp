@@ -257,7 +257,7 @@ void VulkanDevice::CreateCommandPools()
 	VkCommandPoolCreateInfo graphicPoolInfo = {};
 	graphicPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	graphicPoolInfo.queueFamilyIndex = static_cast<uint32_t>(queue_family_indices.graphicsFamily);
-	graphicPoolInfo.flags = 0; // Optional
+	graphicPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; // Optional
 	if (vkCreateCommandPool(logical_device, &graphicPoolInfo, nullptr, &graphic_command_pool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphic command pool!");
 	}

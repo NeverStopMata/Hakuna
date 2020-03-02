@@ -1,4 +1,9 @@
 #include "HakunaRenderer.h"
+constexpr float DISPLAY_ROT_SPEED = 0.2;
+void HakunaRenderer::GetWindowSize(int* width, int* height)
+{
+	glfwGetFramebufferSize(window_, width, height);
+}
 void HakunaRenderer::InitVulkan()
 {
 	VulkanUtility::CreateInstance(vk_contex_);
@@ -22,26 +27,30 @@ void HakunaRenderer::InitVulkan()
 	VulkanUtility::CreateFramebuffers(vk_contex_);
 	VulkanUtility::CreateDescriptorPool(vk_contex_);
 	CreateUniformBuffers();
-
 	MeshMgr::GetInstance()->Init(&vk_contex_);
-	MeshMgr::GetInstance()->LoadModelFromFile("resource/models/gun.obj", "gun");// temp debug
+	MeshMgr::GetInstance()->LoadModelFromFile("resource/models/sky.obj", "sky", glm::vec3(10, 10, 10));
 
-	//MeshMgr::GetInstance()->CreateCubeMesh("gun", glm::vec3(5, 0.1, 5));
-	MeshMgr::GetInstance()->LoadModelFromFile("resource/models/sky.obj", "sky",glm::vec3(10,10,10));
+	
 	TextureMgr::GetInstance()->AddTexture("sky_texcube", (new Texture(&vk_contex_))->LoadTextureCube("resource/textures/skybox_tex/hdr/gcanyon_cube.ktx"));
-	TextureMgr::GetInstance()->AddTexture("basecolor", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_basecolor.dds"));
-	TextureMgr::GetInstance()->AddTexture("metallic", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_metallic.dds"));
-	TextureMgr::GetInstance()->AddTexture("normal", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_normal.dds"));
-	TextureMgr::GetInstance()->AddTexture("occlusion", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_occlusion.dds"));
-	TextureMgr::GetInstance()->AddTexture("roughness", (new Texture(&vk_contex_))->LoadTexture2D("resource/textures/gun_roughness.dds"));
 	TextureMgr::GetInstance()->AddTexture("env_irradiance_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_DIFFUSE));
 	TextureMgr::GetInstance()->AddTexture("env_specular_cubemap", GeneratePrefilterEnvCubemap(EnvCubemapType::ECT_SPECULAR));
 	TextureMgr::GetInstance()->AddTexture("env_brdf_lut", GenerateBRDFLUT());
 
+	//CreateOpaqueDescriptorSets();
 	CreateSyncObjects();
-	CreateOpaqueDescriptorSets();
 	CreateSkyboxDescriptorSets();
 	CreateCommandBuffers();
+
+	RenderElement render_element1("gun", Transform(), this, ERenderElementTtype::OccludeeOnly);
+	RenderElement render_element2("gun", Transform(glm::vec3(5, 0, 0), glm::vec3(2, 2, 2), glm::vec3(0, 1, 0), 90), this, ERenderElementTtype::OccludeeOnly);
+	RenderElement render_element3("cube", Transform(glm::vec3(0, 10, 0), glm::vec3(0.01, 0.01, 0.01), glm::vec3(0, 1, 0), 0), this, ERenderElementTtype::OccluderOnly);
+	RenderElement render_element4("cube", Transform(glm::vec3(0, 0, 0), glm::vec3(0.2, 0.2, 0.2), glm::vec3(0, 1, 0), 0), this, ERenderElementTtype::OccluderOnly); 
+	RenderElement render_element5("cube", Transform(glm::vec3(0, -10, 0), glm::vec3(0.2, 0.2, 0.2), glm::vec3(0, 1, 0), 0), this, ERenderElementTtype::OccluderOnly);
+	render_elements_.emplace_back(render_element1);
+	render_elements_.emplace_back(render_element2);
+	render_elements_.emplace_back(render_element3);
+	render_elements_.emplace_back(render_element4);
+	render_elements_.emplace_back(render_element5);
 }
 
 void HakunaRenderer::InitWindow()
@@ -145,11 +154,18 @@ void HakunaRenderer::CreateGraphicPipeline() {
 	depthStencil.front = {}; // Optional
 	depthStencil.back = {}; // Optional
 
+	VkPushConstantRange pushConstantRange{};
+	pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	pushConstantRange.offset = 0;
+	pushConstantRange.size = sizeof(glm::mat4)*2;
+	std::vector<VkPushConstantRange> pushConstantRanges = { pushConstantRange, };
 	VkPipelineLayoutCreateInfo pipelineLayoutCI = {};
+
 	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutCI.setLayoutCount = 1;
 	pipelineLayoutCI.pSetLayouts = &vk_contex_.descriptor_set_layout;
-	pipelineLayoutCI.pushConstantRangeCount = 0;
+	pipelineLayoutCI.pushConstantRangeCount = pushConstantRanges.size();
+	pipelineLayoutCI.pPushConstantRanges = pushConstantRanges.data();
 
 	if (vkCreatePipelineLayout(vk_contex_.vulkan_device.logical_device, &pipelineLayoutCI, nullptr, &vk_contex_.pipeline_layout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
@@ -158,8 +174,7 @@ void HakunaRenderer::CreateGraphicPipeline() {
 	VkGraphicsPipelineCreateInfo pipelineCI = {};
 	pipelineCI.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	/*referencing the array of VkPipelineShaderStageCreateInfo structs.*/
-	pipelineCI.stageCount = shaderStages.size();
-	pipelineCI.pStages = shaderStages.data();
+
 	/*the fixed - function stage.*/
 
 	pipelineCI.pVertexInputState = &vertexInputInfo;
@@ -173,21 +188,20 @@ void HakunaRenderer::CreateGraphicPipeline() {
 	pipelineCI.pDynamicState = nullptr; // Optional
 
 	pipelineCI.layout = vk_contex_.pipeline_layout;
-
 	pipelineCI.renderPass = vk_contex_.renderpass;
 	pipelineCI.subpass = 0;
 
 	pipelineCI.basePipelineHandle = VK_NULL_HANDLE; // Optional
 	pipelineCI.basePipelineIndex = -1; // Optional
-
-	shaderStages[0] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/opaque_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/opaque_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	ShaderManager::GetInstance()->SetShaderStages("opaque");
+	pipelineCI.stageCount = ShaderManager::GetInstance()->GetShaderStagesByShaderName("opaque").size();
+	pipelineCI.pStages = ShaderManager::GetInstance()->GetShaderStagesByShaderName("opaque").data();
 	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_device.pipeline_cache, 1, &pipelineCI, nullptr, &vk_contex_.pipeline_struct.opaque_pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
-
-	shaderStages[0] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/skybox_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	shaderStages[1] = ShaderManager::GetInstance()->LoadShader("resource/shaders/compiled_shaders/skybox_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	ShaderManager::GetInstance()->SetShaderStages("skybox");
+	pipelineCI.stageCount = ShaderManager::GetInstance()->GetShaderStagesByShaderName("skybox").size();
+	pipelineCI.pStages = ShaderManager::GetInstance()->GetShaderStagesByShaderName("skybox").data();
 	if (vkCreateGraphicsPipelines(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_device.pipeline_cache, 1, &pipelineCI, nullptr, &vk_contex_.pipeline_struct.skybox_pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
@@ -206,79 +220,88 @@ void HakunaRenderer::CreateCommandBuffers() {
 	if (vkAllocateCommandBuffers(vk_contex_.vulkan_device.logical_device, &allocInfo, command_buffers_.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
+}
 
-	for (size_t i = 0; i < command_buffers_.size(); i++) {
-		VkCommandBufferBeginInfo beginInfo = {};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		//The command buffer can be resubmitted while it is also already pending execution.
-		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-		beginInfo.pInheritanceInfo = nullptr; // Optional
-		if (vkBeginCommandBuffer(command_buffers_[i], &beginInfo) != VK_SUCCESS) {
-			throw std::runtime_error("failed to begin recording command buffer!");
-		}
-		VkRenderPassBeginInfo renderPassBeginInfo = {};
-		renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassBeginInfo.renderPass = vk_contex_.renderpass;
-		renderPassBeginInfo.framebuffer = vk_contex_.swapchain_framebuffers[i];
-		renderPassBeginInfo.renderArea.offset = { 0, 0 };
-		renderPassBeginInfo.renderArea.extent = vk_contex_.vulkan_swapchain.extent_;
-		std::array<VkClearValue, 2> clearValues = {};
-		clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-		/*The range of depths in the depth buffer is 0.0 to 1.0 in Vulkan, where 1.0 lies at the far view plane and 0.0 at the near view plane. */
-		clearValues[1].depthStencil = { 1.0f, 0 };
-		renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassBeginInfo.pClearValues = clearValues.data();
-		vkCmdBeginRenderPass(command_buffers_[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+void HakunaRenderer::RecordCommandBuffers(uint32_t currentImage) {
+
+	vkResetCommandBuffer(command_buffers_[currentImage], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	//The command buffer can be resubmitted while it is also already pending execution.
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	beginInfo.pInheritanceInfo = nullptr; // Optional
+	if (vkBeginCommandBuffer(command_buffers_[currentImage], &beginInfo) != VK_SUCCESS) {
+		throw std::runtime_error("failed to begin recording command buffer!");
+	}
+	VkRenderPassBeginInfo renderPassBeginInfo = {};
+	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassBeginInfo.renderPass = vk_contex_.renderpass;
+	renderPassBeginInfo.framebuffer = vk_contex_.swapchain_framebuffers[currentImage];
+	renderPassBeginInfo.renderArea.offset = { 0, 0 };
+	renderPassBeginInfo.renderArea.extent = vk_contex_.vulkan_swapchain.extent_;
+	std::array<VkClearValue, 2> clearValues = {};
+	clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+	/*The range of depths in the depth buffer is 0.0 to 1.0 in Vulkan, where 1.0 lies at the far view plane and 0.0 at the near view plane. */
+	clearValues[1].depthStencil = { 1.0f, 0 };
+	renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+	renderPassBeginInfo.pClearValues = clearValues.data();
+
+	// Submit via push constant (rather than a UBO)
+	
+	vkCmdBeginRenderPass(command_buffers_[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	{
+
+		for (RenderElement render_element : render_elements_)
 		{
-			VkBuffer vertexBuffers[] = { MeshMgr::GetInstance()->GetMeshByName("gun")->vertex_buffer_.buffer };
-			VkDeviceSize offsets[] = { 0 };
-			vkCmdBindDescriptorSets(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_layout, 0, 1, &opaque_descriptor_sets_[i], 0, nullptr);
-			vkCmdBindVertexBuffers(command_buffers_[i], 0, 1, vertexBuffers, offsets);
-			vkCmdBindIndexBuffer(command_buffers_[i], MeshMgr::GetInstance()->GetMeshByName("gun")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
-			vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_struct.opaque_pipeline);
-			vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(MeshMgr::GetInstance()->GetMeshByName("gun")->indices_.size()), 1, 0, 0, 0);
-
-		}
-
-
-		if(is_render_skybox)
-		{
-			VkBuffer vertexBuffers[] = { MeshMgr::GetInstance()->GetMeshByName("sky")->vertex_buffer_.buffer };
-			VkDeviceSize offsets[] = { 0 };
-			vkCmdBindDescriptorSets(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_layout, 0, 1, &skybox_descriptor_sets_[i], 0, nullptr);
-			vkCmdBindVertexBuffers(command_buffers_[i], 0, 1, vertexBuffers, offsets);
-			vkCmdBindIndexBuffer(command_buffers_[i], MeshMgr::GetInstance()->GetMeshByName("sky")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
-			vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_struct.skybox_pipeline);
-			vkCmdDrawIndexed(command_buffers_[i], static_cast<uint32_t>(MeshMgr::GetInstance()->GetMeshByName("sky")->indices_.size()), 1, 0, 0, 0);
-		}
-		
-		vkCmdEndRenderPass(command_buffers_[i]);
-		if (vkEndCommandBuffer(command_buffers_[i]) != VK_SUCCESS) {
-			throw std::runtime_error("failed to record command buffer!");
+			render_element.CommitRendering(currentImage);
 		}
 	}
+	if (is_render_skybox)
+	{
+		VkBuffer vertexBuffers[] = { MeshMgr::GetInstance()->GetMeshByName("sky")->vertex_buffer_.buffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindDescriptorSets(command_buffers_[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_layout, 0, 1, &skybox_descriptor_sets_[currentImage], 0, nullptr);
+		vkCmdBindVertexBuffers(command_buffers_[currentImage], 0, 1, vertexBuffers, offsets);
+		vkCmdBindIndexBuffer(command_buffers_[currentImage], MeshMgr::GetInstance()->GetMeshByName("sky")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindPipeline(command_buffers_[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_contex_.pipeline_struct.skybox_pipeline);
+		vkCmdDrawIndexed(command_buffers_[currentImage], static_cast<uint32_t>(MeshMgr::GetInstance()->GetMeshByName("sky")->indices_.size()), 1, 0, 0, 0);
+	}
+
+	vkCmdEndRenderPass(command_buffers_[currentImage]);
+	if (vkEndCommandBuffer(command_buffers_[currentImage]) != VK_SUCCESS) {
+		throw std::runtime_error("failed to record command buffer!");
+	}
 }
+
+void HakunaRenderer::CullOccludedRenderElement(uint32_t currentImage)
+{
+	MSOCManager::GetInstance()->CollectOccluderTriangles();
+	ScissorRect fullscreen_scissor(0,0,1920,1080);
+	MSOCManager::GetInstance()->RenderTrilist(&fullscreen_scissor);
+}
+
 /*
 1.Acquire an image from the swap chain
 2.Execute the command buffer with that image as attachment in the framebuffer
 3.Return the image to the swap chain for presentation
 Each of these events is set in motion using a single function call, but they are executed asynchronously.
 */
-void HakunaRenderer::DrawFrame(){
+void HakunaRenderer::DrawFrame() {
 	//only after the execution of the cmd buffer with the same frame index has been finished(coresponding fence beging signaled),
 	//the function will go on.
 	vkWaitForFences(
-		vk_contex_.vulkan_device.logical_device, 
-		1, 
-		&in_flight_fences_[current_frame_], 
-		VK_TRUE, 
+		vk_contex_.vulkan_device.logical_device,
+		1,
+		&in_flight_fences_[current_frame_],
+		VK_TRUE,
 		std::numeric_limits<uint64_t>::max());
 	uint32_t imageIndex;
 	VkResult result = vkAcquireNextImageKHR(vk_contex_.vulkan_device.logical_device, vk_contex_.vulkan_swapchain.swapChain_, std::numeric_limits<uint64_t>::max(), image_available_semaphores_[current_frame_], VK_NULL_HANDLE, &imageIndex);
 
-	/*VK_ERROR_OUT_OF_DATE_KHR: The swap chain has become incompatible with the surface and can no longer be used for rendering. 
+	/*VK_ERROR_OUT_OF_DATE_KHR: The swap chain has become incompatible with the surface and can no longer be used for rendering.
 	Usually happens after a window resize.
-      VK_SUBOPTIMAL_KHR: The swap chain can still be used to successfully present to the surface, but the surface properties are no longer matched exactly.*/
+	  VK_SUBOPTIMAL_KHR: The swap chain can still be used to successfully present to the surface, but the surface properties are no longer matched exactly.*/
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 		ReCreateSwapChain();
 		return;
@@ -288,6 +311,11 @@ void HakunaRenderer::DrawFrame(){
 	}
 
 	UpdateUniformBuffer(imageIndex);
+	//UpdatePushConstant(imageIndex);
+	vfc_.DoCull(render_elements_);
+	CullOccludedRenderElement(imageIndex);
+	//MSOCManager
+	RecordCommandBuffers(imageIndex);
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -345,9 +373,9 @@ void HakunaRenderer::CreateSyncObjects() {
 	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		if (vkCreateSemaphore(vk_contex_.vulkan_device.logical_device, &semaphoreInfo, nullptr,&image_available_semaphores_[i]) != VK_SUCCESS ||
-			vkCreateSemaphore(vk_contex_.vulkan_device.logical_device, &semaphoreInfo, nullptr,&render_finished_semaphores_[i]) != VK_SUCCESS ||
-			vkCreateFence(vk_contex_.vulkan_device.logical_device, &fenceInfo, nullptr,&in_flight_fences_[i]) != VK_SUCCESS){
+		if (vkCreateSemaphore(vk_contex_.vulkan_device.logical_device, &semaphoreInfo, nullptr, &image_available_semaphores_[i]) != VK_SUCCESS ||
+			vkCreateSemaphore(vk_contex_.vulkan_device.logical_device, &semaphoreInfo, nullptr, &render_finished_semaphores_[i]) != VK_SUCCESS ||
+			vkCreateFence(vk_contex_.vulkan_device.logical_device, &fenceInfo, nullptr, &in_flight_fences_[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create synchronization objects for a frame!");
 		}
 	}
@@ -369,8 +397,9 @@ void HakunaRenderer::ReCreateSwapChain() {
 	VulkanUtility::CreateDepthResources(vk_contex_);
 	VulkanUtility::CreateFramebuffers(vk_contex_);
 	CreateCommandBuffers();
-	
+
 }
+
 
 
 void HakunaRenderer::CreateUniformBuffers() {
@@ -378,9 +407,9 @@ void HakunaRenderer::CreateUniformBuffers() {
 		static_cast<uint32_t>(vk_contex_.vulkan_device.queue_family_indices.transferFamily),
 		static_cast<uint32_t>(vk_contex_.vulkan_device.queue_family_indices.graphicsFamily) };
 
-	mvp_ubos_.resize(vk_contex_.vulkan_swapchain.imageCount_);
-	directional_light_ubos_.resize(vk_contex_.vulkan_swapchain.imageCount_);
-	params_ubos_.resize(vk_contex_.vulkan_swapchain.imageCount_);
+	global_params_ubos_.resize(vk_contex_.vulkan_swapchain.imageCount_);
+	/*directional_light_ubos_.resize(vk_contex_.vulkan_swapchain.imageCount_);
+	params_ubos_.resize(vk_contex_.vulkan_swapchain.imageCount_);*/
 
 	for (size_t i = 0; i < vk_contex_.vulkan_swapchain.imageCount_; i++) {
 
@@ -388,75 +417,58 @@ void HakunaRenderer::CreateUniformBuffers() {
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
 			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&mvp_ubos_[i],
-			sizeof(UboMVP)
+			&global_params_ubos_[i],
+			sizeof(UboGlobalParams)
 		);
 
-		vk_contex_.vulkan_device.CreateBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&directional_light_ubos_[i],
-			sizeof(UboDirectionalLights)
-		);
-
-		vk_contex_.vulkan_device.CreateBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&params_ubos_[i],
-			sizeof(UboParams)
-		);
 	}
 }
 
+//void HakunaRenderer::UpdatePushConstant(uint32_t currentImage) {
+//	static auto startTimeForPushConst = std::chrono::high_resolution_clock::now();
+//	auto currentTime = std::chrono::high_resolution_clock::now();
+//	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTimeForPushConst).count();
+//	pushConstants_[currentImage][0] = glm::rotate(
+//		glm::mat4(1.0f),
+//		DISPLAY_ROT_SPEED * time * glm::radians(90.0f),
+//		glm::vec3(0.0f, 1.0f, 0.0f));
+//	pushConstants_[currentImage][1] = glm::inverse(glm::transpose(pushConstants_[currentImage][0]));
+//}
+
 void HakunaRenderer::UpdateUniformBuffer(uint32_t currentImage) {
 	static auto startTime = std::chrono::high_resolution_clock::now();
-
 	auto currentTime = std::chrono::high_resolution_clock::now();
 	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-	UboMVP ubo_mvps = {};
-	ubo_mvps.model = glm::rotate(
-		glm::mat4(1.0f), 
-		0.2f * time * glm::radians(90.0f), 
-		glm::vec3(0.0f, 1.0f, 0.0f));
-	ubo_mvps.model_for_normal = glm::inverse(glm::transpose(ubo_mvps.model));
-	ubo_mvps.view = cam_.GetViewMatrix();
-	ubo_mvps.proj = cam_.GetProjMatrix();
+	UboGlobalParams ubo_global_params = {};
+	//ubo_mvp.model = glm::mat4(1);
+	//ubo_mvp.model_for_normal = glm::mat4(1);
+	ubo_global_params.view = cam_.GetViewMatrix();
+	ubo_global_params.proj = cam_.GetProjMatrix();
 	//GLM was originally designed for OpenGL, where the Y coordinate of the clip coordinates is inverted. 
-	ubo_mvps.proj[1][1] *= -1;
-	mvp_ubos_[currentImage].map(sizeof(ubo_mvps));
-	memcpy(mvp_ubos_[currentImage].mapped, &ubo_mvps, sizeof(ubo_mvps));
-	mvp_ubos_[currentImage].unmap();
+	ubo_global_params.proj[1][1] *= -1;
+	ubo_global_params.light_direction = main_light_.GetDirection();
+	ubo_global_params.light_color = main_light_.GetScaledColor();
+	ubo_global_params.cam_world_pos = cam_.GetWorldPos();
+	ubo_global_params.max_reflection_lod = static_cast<float>(TextureMgr::GetInstance()->GetTextureByName("env_specular_cubemap")->miplevel_size_);
+	ubo_global_params.game_time = time;
 
-
-	UboDirectionalLights ubo_lights = {};
-	ubo_lights.color = main_light_.GetScaledColor();
-	ubo_lights.direction = main_light_.GetDirection();
-	directional_light_ubos_[currentImage].map(sizeof(ubo_lights));
-	memcpy(directional_light_ubos_[currentImage].mapped, &ubo_lights, sizeof(ubo_lights));
-	directional_light_ubos_[currentImage].unmap();
-
-	UboParams ubo_params = {};
-	ubo_params.cam_world_pos = cam_.GetWorldPos();
-	ubo_params.max_reflection_lod = static_cast<float>(TextureMgr::GetInstance()->GetTextureByName("env_specular_cubemap")->miplevel_size_);
-	params_ubos_[currentImage].map(sizeof(ubo_params));
-	memcpy(params_ubos_[currentImage].mapped, &ubo_params, sizeof(ubo_params));
-	params_ubos_[currentImage].unmap();
+	global_params_ubos_[currentImage].map(sizeof(ubo_global_params));
+	memcpy(global_params_ubos_[currentImage].mapped, &ubo_global_params, sizeof(ubo_global_params));
+	global_params_ubos_[currentImage].unmap();
 }
 void HakunaRenderer::Cleanup()
 {
 	delete(ShaderManager::GetInstance());
 	delete(MeshMgr::GetInstance());
 	delete(TextureMgr::GetInstance());
-
+	delete(MSOCManager::GetInstance());
 	VulkanUtility::CleanupFramebufferAndPipeline(vk_contex_, command_buffers_);
 	vk_contex_.vulkan_swapchain.Cleanup();
 	vkDestroyDescriptorSetLayout(vk_contex_.vulkan_device.logical_device, vk_contex_.descriptor_set_layout, nullptr);
 	for (size_t i = 0; i < vk_contex_.vulkan_swapchain.imageCount_; i++) {
-		mvp_ubos_[i].destroy();
-		directional_light_ubos_[i].destroy();
-		params_ubos_[i].destroy();
+		global_params_ubos_[i].destroy();
+	/*	directional_light_ubos_[i].destroy();
+		params_ubos_[i].destroy();*/
 	}
 	vkDestroyDescriptorPool(vk_contex_.vulkan_device.logical_device, vk_contex_.descriptor_pool, nullptr);
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -486,12 +498,12 @@ void HakunaRenderer::CreateOpaqueDescriptorSets() {
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
 	for (size_t i = 0; i < vk_contex_.vulkan_swapchain.imageCount_; i++) {
-		VkDescriptorBufferInfo mvp_buffer_Info = {};
-		mvp_buffer_Info.buffer = mvp_ubos_[i].buffer;
-		mvp_buffer_Info.offset = 0;
-		mvp_buffer_Info.range = sizeof(UboMVP);
+		VkDescriptorBufferInfo global_params_buffer_Info = {};
+		global_params_buffer_Info.buffer = global_params_ubos_[i].buffer;
+		global_params_buffer_Info.offset = 0;
+		global_params_buffer_Info.range = sizeof(UboGlobalParams);
 
-		VkDescriptorBufferInfo direc_light_buffer_info = {};
+		/*VkDescriptorBufferInfo direc_light_buffer_info = {};
 		direc_light_buffer_info.buffer = directional_light_ubos_[i].buffer;
 		direc_light_buffer_info.offset = 0;
 		direc_light_buffer_info.range = sizeof(UboDirectionalLights);
@@ -499,9 +511,9 @@ void HakunaRenderer::CreateOpaqueDescriptorSets() {
 		VkDescriptorBufferInfo params_buffer_info = {};
 		params_buffer_info.buffer = params_ubos_[i].buffer;
 		params_buffer_info.offset = 0;
-		params_buffer_info.range = sizeof(UboParams);
+		params_buffer_info.range = sizeof(UboParams);*/
 
-		std::vector<VkWriteDescriptorSet> descriptorWrites(3 + material_tex_names_.size());
+		std::vector<VkWriteDescriptorSet> descriptorWrites(1 + material_tex_names_.size());
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].dstSet = opaque_descriptor_sets_[i];
@@ -509,9 +521,9 @@ void HakunaRenderer::CreateOpaqueDescriptorSets() {
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[0].descriptorCount = 1;
-		descriptorWrites[0].pBufferInfo = &mvp_buffer_Info;
+		descriptorWrites[0].pBufferInfo = &global_params_buffer_Info;
 
-		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	/*	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = opaque_descriptor_sets_[i];
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
@@ -525,17 +537,16 @@ void HakunaRenderer::CreateOpaqueDescriptorSets() {
 		descriptorWrites[2].dstArrayElement = 0;
 		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[2].descriptorCount = 1;
-		descriptorWrites[2].pBufferInfo = &params_buffer_info;
+		descriptorWrites[2].pBufferInfo = &params_buffer_info;*/
 
-		for (int k = 3; k < descriptorWrites.size(); k++) {
+		for (int k = 1; k < descriptorWrites.size(); k++) {
 			descriptorWrites[k].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptorWrites[k].dstSet = opaque_descriptor_sets_[i];
 			descriptorWrites[k].dstBinding = k;
 			descriptorWrites[k].dstArrayElement = 0;
 			descriptorWrites[k].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			descriptorWrites[k].descriptorCount = 1;
-			descriptorWrites[k].pImageInfo = &TextureMgr::GetInstance()->GetTextureByName(material_tex_names_[k-3])->descriptor_;
-
+			descriptorWrites[k].pImageInfo = &TextureMgr::GetInstance()->GetTextureByName(material_tex_names_[k - 1])->descriptor_;
 		}
 		vkUpdateDescriptorSets(vk_contex_.vulkan_device.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
@@ -552,17 +563,14 @@ void HakunaRenderer::CreateSkyboxDescriptorSets() {
 	if (vkAllocateDescriptorSets(vk_contex_.vulkan_device.logical_device, &allocInfo, skybox_descriptor_sets_.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
-	int i = 0;
-	i++;
-	i = i * 5;
 
 	for (size_t i = 0; i < vk_contex_.vulkan_swapchain.imageCount_; i++) {
-		VkDescriptorBufferInfo mvp_buffer_Info = {};
-		mvp_buffer_Info.buffer = mvp_ubos_[i].buffer;
-		mvp_buffer_Info.offset = 0;
-		mvp_buffer_Info.range = sizeof(UboMVP);
+		VkDescriptorBufferInfo global_params_buffer_Info = {};
+		global_params_buffer_Info.buffer = global_params_ubos_[i].buffer;
+		global_params_buffer_Info.offset = 0;
+		global_params_buffer_Info.range = sizeof(UboGlobalParams);
 
-		VkDescriptorBufferInfo direc_light_buffer_info = {};
+		/*VkDescriptorBufferInfo direc_light_buffer_info = {};
 		direc_light_buffer_info.buffer = directional_light_ubos_[i].buffer;
 		direc_light_buffer_info.offset = 0;
 		direc_light_buffer_info.range = sizeof(UboDirectionalLights);
@@ -570,18 +578,18 @@ void HakunaRenderer::CreateSkyboxDescriptorSets() {
 		VkDescriptorBufferInfo params_buffer_info = {};
 		params_buffer_info.buffer = params_ubos_[i].buffer;
 		params_buffer_info.offset = 0;
-		params_buffer_info.range = sizeof(UboParams);
+		params_buffer_info.range = sizeof(UboParams);*/
 
-		std::vector<VkWriteDescriptorSet> descriptorWrites(4);
+		std::vector<VkWriteDescriptorSet> descriptorWrites(2);
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].dstSet = skybox_descriptor_sets_[i];
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[0].descriptorCount = 1;
-		descriptorWrites[0].pBufferInfo = &mvp_buffer_Info;
+		descriptorWrites[0].pBufferInfo = &global_params_buffer_Info;
 
-		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	/*	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = skybox_descriptor_sets_[i];
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
@@ -595,15 +603,15 @@ void HakunaRenderer::CreateSkyboxDescriptorSets() {
 		descriptorWrites[2].dstArrayElement = 0;
 		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[2].descriptorCount = 1;
-		descriptorWrites[2].pBufferInfo = &params_buffer_info;
+		descriptorWrites[2].pBufferInfo = &params_buffer_info;*/
 
-		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[3].dstSet = skybox_descriptor_sets_[i];
-		descriptorWrites[3].dstBinding = 3;
-		descriptorWrites[3].dstArrayElement = 0;
-		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites[3].descriptorCount = 1;
-		descriptorWrites[3].pImageInfo = &TextureMgr::GetInstance()->GetTextureByName("sky_texcube")->descriptor_;
+		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[1].dstSet = skybox_descriptor_sets_[i];
+		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstArrayElement = 0;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorCount = 1;
+		descriptorWrites[1].pImageInfo = &TextureMgr::GetInstance()->GetTextureByName("sky_texcube")->descriptor_;
 
 		vkUpdateDescriptorSets(vk_contex_.vulkan_device.logical_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
@@ -635,14 +643,14 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 		prefilterCube->texture_image_memory_);
 	//Image View	
 	VulkanUtility::CreateImageView(
-		vk_contex_, 
-		prefilterCube->texture_image_, 
-		format, 
-		VK_IMAGE_ASPECT_COLOR_BIT, 
+		vk_contex_,
+		prefilterCube->texture_image_,
+		format,
+		VK_IMAGE_ASPECT_COLOR_BIT,
 		numMips,
 		VkImageViewType::VK_IMAGE_VIEW_TYPE_CUBE,
 		&prefilterCube->texture_image_view_);
-	
+
 	// Sampler
 	VulkanUtility::CreateTextureSampler(vk_contex_, numMips, &prefilterCube->texture_sampler_);
 	prefilterCube->descriptor_.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -771,12 +779,12 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 		}
 
 		VulkanUtility::TransitionImageLayout(
-			vk_contex_, 
+			vk_contex_,
 			offscreen.image,
 			format,
 			VK_IMAGE_LAYOUT_UNDEFINED,
 			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-			1,static_cast<uint32_t>(1));
+			1, static_cast<uint32_t>(1));
 	}
 
 	// Descriptor layout
@@ -786,7 +794,7 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 	setLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	setLayoutBinding.binding = 0;
 	setLayoutBinding.descriptorCount = 1;
-	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {setLayoutBinding};
+	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = { setLayoutBinding };
 	VkDescriptorSetLayoutCreateInfo descriptorsetlayoutCI{};
 	descriptorsetlayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	descriptorsetlayoutCI.pBindings = setLayoutBindings.data();
@@ -828,7 +836,7 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 	writeDescriptorSet.pImageInfo = &TextureMgr::GetInstance()->GetTextureByName("sky_texcube")->descriptor_;
 	writeDescriptorSet.descriptorCount = 1;
 
-	
+
 	vkUpdateDescriptorSets(vk_contex_.vulkan_device.logical_device, 1, &writeDescriptorSet, 0, nullptr);
 
 	// Pipeline layout
@@ -844,7 +852,7 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 	pushConstantRange.offset = 0;
 	pushConstantRange.size = sizeof(PushBlock);
 
-	std::vector<VkPushConstantRange> pushConstantRanges = { pushConstantRange,};
+	std::vector<VkPushConstantRange> pushConstantRanges = { pushConstantRange, };
 
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
@@ -871,7 +879,7 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 	rasterizationStateCI.flags = 0;
 	rasterizationStateCI.depthClampEnable = VK_FALSE;
 	rasterizationStateCI.lineWidth = 1.0f;
-	
+
 
 	VkPipelineColorBlendAttachmentState blendAttachmentState{};
 	blendAttachmentState.colorWriteMask = 0xf;
@@ -1055,7 +1063,7 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 			vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelinelayout, 0, 1, &descriptorset, 0, NULL);
 
-			VkDeviceSize offsets[1] = {0};
+			VkDeviceSize offsets[1] = { 0 };
 			vkCmdBindVertexBuffers(cmdBuf, 0, 1, &MeshMgr::GetInstance()->GetMeshByName("sky")->vertex_buffer_.buffer, offsets);
 			vkCmdBindIndexBuffer(cmdBuf, MeshMgr::GetInstance()->GetMeshByName("sky")->index_buffer_.buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexed(cmdBuf, MeshMgr::GetInstance()->GetMeshByName("sky")->indices_.size(), 1, 0, 0, 0);
@@ -1123,9 +1131,9 @@ std::shared_ptr<Texture> HakunaRenderer::GeneratePrefilterEnvCubemap(EnvCubemapT
 
 	auto tEnd = std::chrono::high_resolution_clock::now();
 	auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-	std::cout << "Generating pre-filtered enivornment cube(" 
-		      << ((env_cubemap_type == EnvCubemapType::ECT_SPECULAR)? "specular":"irradiance")
-			  <<") with " << numMips << " mip levels took " << tDiff << " ms" << std::endl;
+	std::cout << "Generating pre-filtered enivornment cube("
+		<< ((env_cubemap_type == EnvCubemapType::ECT_SPECULAR) ? "specular" : "irradiance")
+		<< ") with " << numMips << " mip levels took " << tDiff << " ms" << std::endl;
 	return prefilterCube;
 }
 
@@ -1136,7 +1144,7 @@ std::shared_ptr<Texture> HakunaRenderer::GenerateBRDFLUT()
 	/* if the job takes a lot of time, CPU won't wait for queue's job to be done and the main thread will go die.*/
 	const int32_t dim = 512;
 	const uint32_t numMips = 1;
-	auto brdf_lut =std::make_shared<Texture>(&vk_contex_);
+	auto brdf_lut = std::make_shared<Texture>(&vk_contex_);
 	brdf_lut->miplevel_size_ = numMips;
 	// Pre-filtered cube map
 	// Image
@@ -1218,7 +1226,7 @@ std::shared_ptr<Texture> HakunaRenderer::GenerateBRDFLUT()
 	if (vkCreateRenderPass(vk_contex_.vulkan_device.logical_device, &renderPassCI, nullptr, &renderpass) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create RENDER PASS!");
 	}
-	
+
 
 	VkFramebufferCreateInfo fbufCreateInfo = {};
 	fbufCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1389,7 +1397,7 @@ std::shared_ptr<Texture> HakunaRenderer::GenerateBRDFLUT()
 	scissor.offset.x = 0;
 	scissor.offset.y = 0;
 	vkCmdSetViewport(cmdBuf, 0, 1, &viewport);
-	vkCmdSetScissor(cmdBuf, 0, 1, &scissor);		
+	vkCmdSetScissor(cmdBuf, 0, 1, &scissor);
 	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	vkCmdDraw(cmdBuf, 3, 1, 0, 0);
 	vkCmdEndRenderPass(cmdBuf);
@@ -1405,7 +1413,7 @@ std::shared_ptr<Texture> HakunaRenderer::GenerateBRDFLUT()
 
 	auto tEnd = std::chrono::high_resolution_clock::now();
 	auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-	std::cout << "Generating brdf lut("<< ") with " << numMips << " mip levels took " << tDiff << " ms" << std::endl;
+	std::cout << "Generating brdf lut(" << ") with " << numMips << " mip levels took " << tDiff << " ms" << std::endl;
 	return brdf_lut;
 }
 

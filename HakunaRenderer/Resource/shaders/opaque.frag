@@ -8,22 +8,33 @@ layout(location = 3) in vec3 fragTangent;
 layout(location = 4) in vec3 fragBiTangent;
 layout(location = 5) in vec3 fragWorldViewDirection;
 
-layout(binding = 1) uniform UniformBufferObject1 {
+layout(binding = 0) uniform UniformBufferObject {
+    mat4 view;
+    mat4 proj;
     vec3 direct;
 	vec3 color;
-} ubo_direc_light;
-layout(binding = 2) uniform UniformBufferObject2 { 
-	vec3 cam_world_pos;
+    vec3 cam_world_pos;
 	float max_reflection_lod;
-} ubo_params;
-layout(binding = 3) uniform sampler2D baseColorSampler;
-layout(binding = 4) uniform sampler2D normalSampler;
-layout(binding = 5) uniform sampler2D metallicSampler;
-layout(binding = 6) uniform sampler2D roughnessSampler;
-layout(binding = 7) uniform sampler2D occlusionSampler;
-layout(binding = 8) uniform samplerCube envDiffuseSampler;
-layout(binding = 9) uniform samplerCube envSpecularSampler;
-layout(binding = 10) uniform sampler2D envBRDFLutSampler;
+	float game_time;
+} ubo_global_params;
+
+// layout(binding = 1) uniform UniformBufferObject1 {
+//     vec3 direct;
+// 	vec3 color;
+// } ubo_direc_light;
+// layout(binding = 2) uniform UniformBufferObject2 { 
+// 	vec3 cam_world_pos;
+// 	float max_reflection_lod;
+// 	float game_time;
+// } ubo_params;
+layout(binding = 1) uniform sampler2D baseColorSampler;
+layout(binding = 2) uniform sampler2D normalSampler;
+layout(binding = 3) uniform sampler2D metallicSampler;
+layout(binding = 4) uniform sampler2D roughnessSampler;
+layout(binding = 5) uniform sampler2D occlusionSampler;
+layout(binding = 6) uniform samplerCube envDiffuseSampler;
+layout(binding = 7) uniform samplerCube envSpecularSampler;
+layout(binding = 8) uniform sampler2D envBRDFLutSampler;
 
 
 layout(location = 0) out vec4 outColor;
@@ -33,10 +44,9 @@ layout(location = 0) out vec4 outColor;
 #include "common.inc"
 #include "brdf.inc"
 
-
 vec3 prefilteredReflection(vec3 N, vec3 R, float roughness)
 {
-	float lod = roughness * (ubo_params.max_reflection_lod-1);
+	float lod = roughness * (ubo_global_params.max_reflection_lod-1);
 	float scale = pow(2,lod);
 	float NoR = dot(N,R);
 	vec3 dRdx;
@@ -74,10 +84,35 @@ vec3 GetEnvLighting(vec3 N, vec3 V, vec3 R,vec3 F0, float AO,float metallic, flo
 }
 vec3 GetNormal()
 {
-	//return normalize(fragNormal);
-	mat3 TBN = mat3(fragTangent, fragBiTangent, fragNormal);
+	if(fract(ubo_global_params.game_time*0.2) > 0.5 && false)
+	{
+		vec3 N = normalize(fragNormal);
+		vec3 T = cross(dFdy(fragWorldViewDirection),N)*dFdx(fragTexCoord).x + cross(N,dFdx(fragWorldViewDirection))*dFdy(fragTexCoord).x;
+		T = normalize(T);
+		vec3 B = cross(dFdy(fragWorldViewDirection),N)*dFdx(fragTexCoord).y + cross(N,dFdx(fragWorldViewDirection))*dFdy(fragTexCoord).y;
+		B = normalize(B);
+		mat3 TBN = mat3(T, B, N);
+		vec3 tangentNormal = texture(normalSampler, fragTexCoord).xyz * 2 - 1;
+		return normalize(TBN * tangentNormal);
+	}
+	else
+	{
+		mat3 TBN = mat3(normalize(fragTangent), normalize(fragBiTangent), normalize(fragNormal));
+		vec3 tangentNormal = texture(normalSampler, fragTexCoord).xyz * 2 - 1;
+		return normalize(TBN * tangentNormal);
+	}	
+}
+
+vec3 GetNormalDiff()
+{
+	mat3 TBN1 = mat3(fragTangent, fragBiTangent, fragNormal);
+	vec3 N = fragNormal;
+	vec3 T = cross(dFdy(fragWorldViewDirection),N)*dFdx(fragTexCoord).x + cross(N,dFdx(fragWorldViewDirection))*dFdy(fragTexCoord).x;
+	T = normalize(T);
+	vec3 B = cross(T,N);
+	mat3 TBN2 = mat3(T, B, N);
 	vec3 tangentNormal = texture(normalSampler, fragTexCoord).xyz * 2 - 1;
-    return normalize(TBN * tangentNormal);
+	return normalize(TBN1 * tangentNormal) - normalize(TBN2 * tangentNormal);
 }
 
 vec3 GetDirectLightContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float roughness, vec3 albedo)
@@ -124,7 +159,7 @@ void main()
     vec3 N = GetNormal();
 	vec3 V = normalize(fragWorldViewDirection);
 	vec3 R = reflect(-V, N); 
-	vec3 L = normalize(ubo_direc_light.direct);
+	vec3 L = normalize(ubo_global_params.direct);
 	vec3 albedo     = pow(texture(baseColorSampler, fragTexCoord).rgb, vec3(2.2));
 	float metallic  = texture(metallicSampler, fragTexCoord).r;
 	float roughness = texture(roughnessSampler,fragTexCoord).r;
@@ -153,4 +188,7 @@ void main()
 	//Gamma correction
 	color = pow(color, vec3(1.0f / 2.2f));
     outColor = vec4(color,1);//texture(baseColorSampler, fragTexCoord);
+	// outColor = vec4(GetNormalDiff(),1);
+	// //outColor = vec4(fract(fragTexCoord.xy*30),0,1);
+	
 }
