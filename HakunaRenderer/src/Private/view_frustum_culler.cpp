@@ -4,11 +4,13 @@
 #include "render_element.h"
 #include "bbox.h"
 #include <iostream>
+#include "HakunaRenderer.h"
 //test only three planes.
 std::array<std::array<int, 3>, 8> ViewFrustumCuller::test_planes_lut_ = { 4,3,4, 4,3,0, 4,2,1, 4,2,0, 5,3,1, 5,3,0, 5,2,1, 5,2,0 };
-void ViewFrustumCuller::SetOwnerCamera(Camera* owner_ptr)
+void ViewFrustumCuller::SetRendererAndOwnerCamera(HakunaRenderer* renderer_ptr,Camera* owner_ptr)
 {
 	owner_ = owner_ptr;
+	ptr_renderer_ = renderer_ptr;
 }
 void ViewFrustumCuller::DoCull(std::vector<RenderElement>& render_elements)
 {
@@ -17,7 +19,7 @@ void ViewFrustumCuller::DoCull(std::vector<RenderElement>& render_elements)
 	for (int i = 0; i < render_elements.size(); ++i) {
 		Cullable* ptr_cullee = dynamic_cast<Cullable*>(&(render_elements[i]));
 		results.emplace_back(
-			thread_pool_.enqueue([ptr_cullee, this] {
+			ptr_renderer_->thread_pool_.enqueue([ptr_cullee, this] {
 			return CheckAABBInsideFrustumVolume(ptr_cullee);
 		})
 		);

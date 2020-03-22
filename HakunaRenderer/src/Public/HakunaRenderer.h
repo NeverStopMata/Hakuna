@@ -27,6 +27,7 @@
 #include "VulkanglTFModel.hpp"
 #include "render_element.h"
 #include "view_frustum_culler.h"
+#include "thread_pool.h"
 //right hand axis
 //using namespace std;
 /*
@@ -48,17 +49,6 @@ struct UboGlobalParams {
 	alignas(4) float game_time;
 };
 
-//struct UboDirectionalLights {
-//	alignas(16) glm::vec3 direction;
-//	alignas(16) glm::vec3 color;
-//};
-//
-//struct UboParams {
-//	alignas(16) glm::vec3 cam_world_pos;
-//	alignas(4) float max_reflection_lod;
-//	alignas(4) float game_time;
-//};
-
 VkResult CreateDebugUtilsMessengerEXT(
 	VkInstance instance, 
 	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, 
@@ -69,6 +59,9 @@ void DestroyDebugUtilsMessengerEXT(
 	VkInstance instance, 
 	VkDebugUtilsMessengerEXT debugMessenger, 
 	const VkAllocationCallbacks* pAllocator);
+
+
+
 
 class HakunaRenderer
 {
@@ -83,6 +76,7 @@ public:
 	vector<RenderElement> render_elements_;
 	friend class RenderElement;
 	friend class MSOCManager;
+	ThreadPool thread_pool_;
 private:
 	GLFWwindow *window_;
 	InputManager input_mgr_;
@@ -137,8 +131,7 @@ private:
 	bool framebuffer_resized_ = false;
 	bool is_render_skybox = true;
 public:
-	HakunaRenderer() :
-		main_light_(vec3(1,1,1),vec3(1.0,0.9,0.8),1.5f){
+	HakunaRenderer() :main_light_(vec3(1,1,1),vec3(1.0,0.9,0.8),1.5f),thread_pool_(std::thread::hardware_concurrency() - 1){
 		InitWindow();
 		input_mgr_.Init(window_);
 		InitVulkan();
@@ -146,10 +139,14 @@ public:
 		Camera temp_cam(60.f, vk_contex_.vulkan_swapchain.extent_.width / (float)vk_contex_.vulkan_swapchain.extent_.height, 700.f, 0.01f, vec3(0, 0.2, 1), vec3(0, 0, 0));
 		cam_ = temp_cam;
 		cam_.SetupCameraContrl(input_mgr_);
-		vfc_.SetOwnerCamera(&cam_);
+		vfc_.SetRendererAndOwnerCamera(this,&cam_);
 	}
 	~HakunaRenderer() {
 		Cleanup();
+	}
+	ThreadPool* GetThreadPoolPtr()
+	{
+		return &thread_pool_;
 	}
 	void Loop()
 	{
@@ -218,6 +215,7 @@ private:
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 		auto app = reinterpret_cast<HakunaRenderer*>(glfwGetWindowUserPointer(window));
 		app->framebuffer_resized_ = true;
+		MSOCManager::GetInstance()->UpdateWindowSizes();
 	}
 };
 

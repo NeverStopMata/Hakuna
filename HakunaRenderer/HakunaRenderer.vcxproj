@@ -167,6 +167,7 @@
   <ItemGroup>
     <ClInclude Include="src\Public\bbox.h" />
     <ClInclude Include="src\Public\camera.h" />
+    <ClInclude Include="src\Public\CPU_query_helper.h" />
     <ClInclude Include="src\Public\cullable.h" />
     <ClInclude Include="src\Public\directional_light.h" />
     <ClInclude Include="src\Public\HakunaRenderer.h" />
@@ -218,6 +219,7 @@
     <ClCompile Include="src\Private\vulkan_device.cpp" />
     <ClCompile Include="src\Private\vulkan_swapchain.cpp" />
     <ClCompile Include="src\Private\VulkanTools.cpp" />
+    <ClCompile Include="src\Public\cullable.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resource\shaders\brdf.inc" />

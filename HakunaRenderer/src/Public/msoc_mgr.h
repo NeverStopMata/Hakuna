@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 #include "bbox.h"
-
+#include <iostream>
 #define FORCE_INLINE __forceinline
 
 
@@ -20,7 +20,8 @@
 #define SIMD_BITS_ONE			_mm256_set1_epi32(~0)
 #define SIMD_SHUFFLE_SCANLINE_TO_SUBTILES _mm256_setr_epi8(0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF, 0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF)
 #define SIMD_TILE_WIDTH			_mm256_set1_epi32(TILE_WIDTH)
-
+#define SIMD_SUB_TILE_COL_OFFSET _mm256_setr_epi32(0, SUB_TILE_WIDTH, SUB_TILE_WIDTH * 2, SUB_TILE_WIDTH * 3, 0, SUB_TILE_WIDTH, SUB_TILE_WIDTH * 2, SUB_TILE_WIDTH * 3)
+#define SIMD_SUB_TILE_ROW_OFFSET _mm256_setr_epi32(0, 0, 0, 0, SUB_TILE_HEIGHT, SUB_TILE_HEIGHT, SUB_TILE_HEIGHT, SUB_TILE_HEIGHT)
 #define _mm256_cmpge_ps(a,b)          _mm256_cmp_ps(a, b, _CMP_GE_OQ)
 #define _mm256_cmpgt_ps(a,b)          _mm256_cmp_ps(a, b, _CMP_GT_OQ)
 #define _mm256_cmpeq_ps(a,b)          _mm256_cmp_ps(a, b, _CMP_EQ_OQ)
@@ -74,7 +75,9 @@ MAKE_ACCESSOR(simd_f32, __m256, float, const, 8)
 MAKE_ACCESSOR(simd_i32, __m256i, int, , 8)
 MAKE_ACCESSOR(simd_i32, __m256i, int, const, 8)
 
-
+static const uint32_t sBBxInd[8] = { 1, 0, 0, 1, 1, 1, 0, 0 };
+static const uint32_t sBByInd[8] = { 1, 1, 1, 1, 0, 0, 0, 0 };
+static const uint32_t sBBzInd[8] = { 1, 1, 0, 0, 0, 1, 1, 0 };
 enum ECullingResult
 {
 	VISIBLE = 0x0,
@@ -91,8 +94,8 @@ struct Triangle
 
 struct ZTile
 {
-	__m256        mZMin[2];
-	__m256i       mMask;
+	__m256        z_min[2];
+	__m256i       mask;
 };
 
 struct ScissorRect
@@ -112,9 +115,11 @@ struct TriList
 	float* ptr_tri = nullptr;
 	uint32_t num_tri = 0;
 };
+
 class MSOCManager
 {
 public:
+	//beigin:                            *******************************************************/
 	static MSOCManager* GetInstance()
 	{
 		if (p_instance_ == nullptr)
@@ -122,11 +127,15 @@ public:
 		return p_instance_;
 	}
 	void InitMSOCManager(HakunaRenderer* render_ptr);
-
 	void CollectOccluderTriangles();
-	//beigin:                            *******************************************************/
-
-	FORCE_INLINE void ComputeBoundingBox(__m256i& bbminX, __m256i& bbminY, __m256i& bbmaxX, __m256i& bbmaxY, const __m256* vX, const __m256* vY, const ScissorRect* scissor)
+	void RenderTrilist(const ScissorRect& scissor);
+	void TestDepthForAABBoxes();
+	void UpdateWindowSizes();
+	~MSOCManager();
+private:
+	bool TestPerAABBox(const __m128 mm_VP_mat[4],RenderElement& render_element);
+	ECullingResult TestRect(float xmin, float ymin, float xmax, float ymax, float wmin) const;
+	FORCE_INLINE void ComputeBoundingBox(__m256i& bbminX, __m256i& bbminY, __m256i& bbmaxX, __m256i& bbmaxY, const __m256* vX, const __m256* vY, const ScissorRect& scissor)
 	{
 		static const __m256i SIMD_PAD_W_MASK = _mm256_set1_epi32(~(TILE_WIDTH - 1));
 		static const __m256i SIMD_PAD_H_MASK = _mm256_set1_epi32(~(TILE_HEIGHT - 1));
@@ -144,10 +153,10 @@ public:
 		bbmaxY = _mm256_and_si256(_mm256_add_epi32(bbmaxY, _mm256_set1_epi32(TILE_HEIGHT)), SIMD_PAD_H_MASK);
 
 		// Clip to scissor
-		bbminX = _mm256_max_epi32(bbminX, _mm256_set1_epi32(scissor->mMinX));
-		bbmaxX = _mm256_min_epi32(bbmaxX, _mm256_set1_epi32(scissor->mMaxX));
-		bbminY = _mm256_max_epi32(bbminY, _mm256_set1_epi32(scissor->mMinY));
-		bbmaxY = _mm256_min_epi32(bbmaxY, _mm256_set1_epi32(scissor->mMaxY));
+		bbminX = _mm256_max_epi32(bbminX, _mm256_set1_epi32(scissor.mMinX));
+		bbmaxX = _mm256_min_epi32(bbmaxX, _mm256_set1_epi32(scissor.mMaxX));
+		bbminY = _mm256_max_epi32(bbminY, _mm256_set1_epi32(scissor.mMinY));
+		bbmaxY = _mm256_min_epi32(bbmaxY, _mm256_set1_epi32(scissor.mMaxY));
 	}
 
 	FORCE_INLINE void ComputeDepthPlane(const __m256* pVtxX, const __m256* pVtxY, const __m256* pVtxZ, __m256& zPixelDx, __m256& zPixelDy) const
@@ -192,11 +201,11 @@ public:
 		// good balance between performance and accuracy
 		assert(tileIdx >= 0 && tileIdx < tiles_width_ * tiles_height_);
 
-		__m256i mask = masked_hiz_buffer_[tileIdx].mMask;
-		__m256* zMin = masked_hiz_buffer_[tileIdx].mZMin;
+		__m256i mask = masked_hiz_buffer_[tileIdx].mask;
+		__m256* zMin = masked_hiz_buffer_[tileIdx].z_min;
 
 		// Swizzle coverage mask to 8x4 subtiles and test if any subtiles are not covered at all
-		__m256i rastMask = _mm256_shuffle_epi8(coverage, SIMD_SHUFFLE_SCANLINE_TO_SUBTILES);// _mmw_transpose_epi8(coverage);
+		__m256i rastMask = _mm256_shuffle_epi8(coverage, SIMD_SHUFFLE_SCANLINE_TO_SUBTILES);// _mm256_transpose_epi8(coverage);
 		__m256i deadLane = _mm256_cmpeq_epi32(rastMask, SIMD_BITS_ZERO);
 
 		// Mask out all subtiles failing the depth test (don't update these subtiles)
@@ -223,7 +232,7 @@ public:
 
 		// Propagate zMin[1] back to zMin[0] if tile was fully covered, and update the mask
 		zMin[0] = _mm256_blendv_ps(zMin[0], z1min, simd_cast<__m256>(maskFull));
-		masked_hiz_buffer_[tileIdx].mMask = _mm256_andnot_si256(maskFull, mask);
+		masked_hiz_buffer_[tileIdx].mask = _mm256_andnot_si256(maskFull, mask);
 	}
 
 	template<int TEST_Z, int NRIGHT, int NLEFT>
@@ -243,12 +252,18 @@ public:
 		for (;;)
 		{
 			// Only use the reference layer (layer 0) to cull as it is always conservative
-			__m256 zMinBuf = masked_hiz_buffer_[tileIdx].mZMin[0];
+			__m256 zMinBuf = masked_hiz_buffer_[tileIdx].z_min[0];
 
 			__m256 dist0 = _mm256_sub_ps(zTriMax, zMinBuf);
 			if (_mm256_movemask_ps(dist0) != SIMD_ALL_LANES_MASK)//三角形最近的点的确比depth buffer中记录的参考值来得近
 			{
 				// Compute coverage mask for entire 32xN using shift operations
+
+				//低位记录的是左边。 为的是之后重排成sub tile的mask时 0~7分别对应：
+				//4 5 6 7
+				//0 1 2 3
+				//也就是重排之后，subtile idx较小的值依然是在左侧，和整个tile的排序方式（以及一个tile中subtile的zmin数组的排序方式）保持一致。
+				//都是从左到右，从下至上，按行数。
 				__m256i accumulatedMask = _mm256_sllv_epi32(SIMD_BITS_ONE, left[0]);
 				for (int i = 1; i < NLEFT; ++i)
 					accumulatedMask = _mm256_and_si256(accumulatedMask, _mm256_sllv_epi32(SIMD_BITS_ONE, left[i]));
@@ -478,7 +493,7 @@ public:
 	}
 
 	template<bool TEST_Z>
-	FORCE_INLINE int RasterizeTriangleBatch(__m256 pVtxX[3], __m256 pVtxY[3], __m256 pVtxZ[3], unsigned int triMask, const ScissorRect* scissor)
+	FORCE_INLINE int RasterizeTriangleBatch(__m256 pVtxX[3], __m256 pVtxY[3], __m256 pVtxZ[3], unsigned int triMask, const ScissorRect& scissor)
 	{
 		int cullResult = ECullingResult::VIEW_CULLED;
 
@@ -534,7 +549,7 @@ public:
 		}
 		//zPlaneOffset is the std::max depth of this subtile which includes the std::min corner.
 		// Compute Zmin and Zmax for the triangle (used to narrow the range for difficult tiles)
-		__m256 zMin = _mm256_min_ps(pVtxZ[0], _mm256_min_ps(pVtxZ[1], pVtxZ[2]));
+		__m256 zMin = _mm256_min_ps(pVtxZ[0], _mm256_min_ps(pVtxZ[1], pVtxZ[2]));//todomata 会产生结果为负数的三角形 破坏后续比较远近的规则。
 		__m256 zMax = _mm256_max_ps(pVtxZ[0], _mm256_max_ps(pVtxZ[1], pVtxZ[2]));
 
 		//////////////////////////////////////////////////////////////////////////////
@@ -661,55 +676,64 @@ public:
 
 		return cullResult;
 	}
-	void RenderTrilist(const ScissorRect* scissor)
+
+	FORCE_INLINE int ClipPolygon(__m128* outVtx, __m128* inVtx, const __m128& plane, int n) const
 	{
-		assert(masked_hiz_buffer_ != nullptr);
-		for (unsigned int i = 0; i < tri_list_.num_tri; i += SIMD_LANES)
+		__m128 p0 = inVtx[n - 1];
+		__m128 dist0 = _mm_dp_ps(p0, plane, 0xff);
+
+		// Loop over all polygon edges and compute intersection with clip plane (if any)
+		int nout = 0;
+		for (int k = 0; k < n; k++)
 		{
-			//////////////////////////////////////////////////////////////////////////////
-			// Fetch triangle vertices
-			//////////////////////////////////////////////////////////////////////////////
-			unsigned int numLanes = std::min((unsigned int)SIMD_LANES, tri_list_.num_tri - i);
-			unsigned int triMask = (1U << numLanes) - 1;
+			__m128 p1 = inVtx[k];
+			__m128 dist1 = _mm_dp_ps(p1, plane, 0xff);
+			int dist0Neg = _mm_movemask_ps(dist0);
+			if (!dist0Neg)	// dist0 > 0.0f
+				outVtx[nout++] = p0;
 
-			__m256 pVtxX[3], pVtxY[3], pVtxZ[3];
-
-			for (unsigned int l = 0; l < numLanes; ++l)
+			// Edge intersects the clip plane if dist0 and dist1 have opposing signs
+			if (_mm_movemask_ps(_mm_xor_ps(dist0, dist1)))
 			{
-				unsigned int triIdx = i + l;
-				for (int v = 0; v < 3; ++v)
+				// Always clip from the positive side to avoid T-junctions
+				if (!dist0Neg)
 				{
-					simd_f32(pVtxX[v])[l] = tri_list_.ptr_tri[v * 3 + triIdx * 9 + 0];
-					simd_f32(pVtxY[v])[l] = tri_list_.ptr_tri[v * 3 + triIdx * 9 + 1];
-					simd_f32(pVtxZ[v])[l] = tri_list_.ptr_tri[v * 3 + triIdx * 9 + 2];
+					__m128 t = _mm_div_ps(dist0, _mm_sub_ps(dist0, dist1));
+					outVtx[nout++] = _mm_fmadd_ps(_mm_sub_ps(p1, p0), t, p0);
+				}
+				else
+				{
+					__m128 t = _mm_div_ps(dist1, _mm_sub_ps(dist1, dist0));
+					outVtx[nout++] = _mm_fmadd_ps(_mm_sub_ps(p0, p1), t, p1);
 				}
 			}
-			//////////////////////////////////////////////////////////////////////////////
-			// Setup and rasterize a SIMD batch of triangles
-			//////////////////////////////////////////////////////////////////////////////
-			RasterizeTriangleBatch<false>(pVtxX, pVtxY, pVtxZ, triMask, scissor);
+			dist0 = dist1;
+			p0 = p1;
 		}
+		return nout;
 	}
-
-	~MSOCManager()
-	{
-		occludee_bboxes_.clear();
-		delete tri_list_.ptr_tri;
-		delete[] masked_hiz_buffer_;
-	}
-private:
 	void InitMSOCTriangleLists();
-
+	void CullBackTriangleAndClip();
+	void PrintZBufferToPicture();
 	/*member*/
 	bool is_tri_list_initialized = false;
 	std::vector<std::shared_ptr<Bbox>> occludee_bboxes_;
-	TriList tri_list_;
+	TriList raw_tri_list_;
+	TriList final_tri_list_;
 	static MSOCManager* p_instance_;
 	HakunaRenderer* ptr_renderer_;
 	ZTile*			masked_hiz_buffer_;
-
+	__m128          mm_frustum_planes_[5];//x y z 存的是normal的负方向
 	int             width_;
 	int             height_;
+	int             half_width_;
+	int             half_height_;
+	__m256			mm_half_width_;
+	__m256			mm_half_height_;
+	__m128          m_half_size_;//half_w half_w half_h half_h
+	__m128i         m_screen_size_;//w w h h
+	__m256			mm_center_x_;
+	__m256			mm_center_y_;
 	int             tiles_width_;
 	int             tiles_height_;
 };

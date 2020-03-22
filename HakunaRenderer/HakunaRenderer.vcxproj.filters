@@ -105,6 +105,9 @@
     <ClInclude Include="src\Public\view_frustum_culler.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Public\CPU_query_helper.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Private\camera.cpp">
@@ -168,6 +171,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Private\view_frustum_culler.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Public\cullable.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

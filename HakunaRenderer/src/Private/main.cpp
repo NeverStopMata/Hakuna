@@ -7,6 +7,7 @@
 #define new new
 #endif
 #include <iostream>
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "HakunaRenderer.h"
 #ifdef _DEBUG
 static _CrtMemState s1, s2, s3;

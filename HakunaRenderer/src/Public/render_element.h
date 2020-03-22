@@ -91,9 +91,9 @@ public:
 		return this->model_transform_.GetModelMatrix<FOR_NORMAL>();
 	}
 
-	bool IsNeedRender()
+	bool IsNotOutOfViewFrustum()
 	{
-		return this->NeedRender();
+		return this->InsideOrIntersectViewFrustum();
 	}
 
 	void UpdateTransform(const Transform& new_transform, uint32_t currentImage);

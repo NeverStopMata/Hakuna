@@ -22,7 +22,7 @@ RenderElement::RenderElement(string name, Transform transform, HakunaRenderer* p
 }
 void RenderElement::CommitRendering(uint32_t currentImage)
 {
-	if (!this->NeedRender()) { return; }
+	if (!this->InsideOrIntersectViewFrustum() || this->IsOccluded()) { return; }
 	vkCmdPushConstants(
 		ptr_renderer_->command_buffers_[currentImage],
 		ptr_renderer_->vk_contex_.pipeline_layout,

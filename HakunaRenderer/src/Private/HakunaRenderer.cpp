@@ -46,11 +46,13 @@ void HakunaRenderer::InitVulkan()
 	RenderElement render_element3("cube", Transform(glm::vec3(0, 10, 0), glm::vec3(0.01, 0.01, 0.01), glm::vec3(0, 1, 0), 0), this, ERenderElementTtype::OccluderOnly);
 	RenderElement render_element4("cube", Transform(glm::vec3(0, 0, 0), glm::vec3(0.2, 0.2, 0.2), glm::vec3(0, 1, 0), 0), this, ERenderElementTtype::OccluderOnly); 
 	RenderElement render_element5("cube", Transform(glm::vec3(0, -10, 0), glm::vec3(0.2, 0.2, 0.2), glm::vec3(0, 1, 0), 0), this, ERenderElementTtype::OccluderOnly);
+	RenderElement render_element6("cube", Transform(glm::vec3(0, 0, 2), glm::vec3(0.2, 0.2, 0.2), glm::vec3(0, 1, 0), 0), this, ERenderElementTtype::OccluderOnly);
 	render_elements_.emplace_back(render_element1);
 	render_elements_.emplace_back(render_element2);
 	render_elements_.emplace_back(render_element3);
 	render_elements_.emplace_back(render_element4);
 	render_elements_.emplace_back(render_element5);
+	render_elements_.emplace_back(render_element6);
 }
 
 void HakunaRenderer::InitWindow()
@@ -277,8 +279,10 @@ void HakunaRenderer::RecordCommandBuffers(uint32_t currentImage) {
 void HakunaRenderer::CullOccludedRenderElement(uint32_t currentImage)
 {
 	MSOCManager::GetInstance()->CollectOccluderTriangles();
-	ScissorRect fullscreen_scissor(0,0,1920,1080);
-	MSOCManager::GetInstance()->RenderTrilist(&fullscreen_scissor);
+	int width = 0, height = 0;
+	glfwGetFramebufferSize(window_, &width, &height);
+	MSOCManager::GetInstance()->RenderTrilist(ScissorRect{0,0, width, height});
+	MSOCManager::GetInstance()->TestDepthForAABBoxes();
 }
 
 /*
